@@ -1,0 +1,236 @@
+/* ============================================================
+   TYPOGRAPHY — Boehringer Forward type system
+   Head = display/headlines, Text = body & UI.
+
+   TUNED FOR READERS 65+. This is a patient portal whose primary
+   audience is 65 and older. Legibility and hierarchy outrank
+   density in every trade-off here. See "EVIDENCE" below before
+   shrinking anything.
+
+   Two layers:
+   1. PRIMITIVES — family, weight, size, line-height, tracking.
+   2. COMPOSITE ROLES (--type-*) — named text styles that bundle
+      weight + size/line-height + family into the CSS `font`
+      shorthand, each paired with a --type-*-tracking value.
+      Apply a whole role in two declarations —
+        font: var(--type-title-1);
+        letter-spacing: var(--type-title-1-tracking);
+
+   ------------------------------------------------------------
+   EVIDENCE (why these numbers, and where they are soft)
+   ------------------------------------------------------------
+   • Body 18px / reading 20px. Systematic review of font size for
+     older adults on mobile (Frontiers in Psychology 2022, subjects
+     57–70) lands at 17–20px for sustained reading. NHS Design
+     System ships 19px desktop body. USWDS floors at 16px.
+     https://pmc.ncbi.nlm.nih.gov/articles/PMC9376262/
+     https://service-manual.nhs.uk/design-system/styles/typography
+     Caveat from that same review: bigger is NOT monotonically
+     better — reading speed plateaus and can decline past ~1° of
+     visual angle. Do not inflate past this ramp reflexively.
+
+   • 14px floor, no 11–12px tier. No government or health design
+     system sanctions 11–12px text; NHS's smallest documented size
+     is 14px, "used sparingly". The old --text-2xs (11px) and
+     --text-xs (12px) steps are deliberately GONE. If you need
+     14px, it is metadata only — never running copy.
+
+   • Line-height 1.5–1.6 on body. USWDS ("at least 1.5"), and
+     WCAG 2.2 SC 1.4.12 requires content to survive 1.5×.
+     (The NIA checklist says "double space" body text — that is a
+     print-typewriter convention, not screen evidence. Ignored.)
+
+   • Tracking 0 on body. SC 1.4.12's 0.12em is a robustness
+     requirement — content must not break when a user applies it.
+     It is NOT a recommendation to ship positive tracking. No
+     primary source supports loose tracking for older readers.
+
+   • Weight 400 on body, 500 on UI labels. The one primary source
+     on weight (NIA/NLM senior checklist) says "medium or bold",
+     which argues for 500 everywhere. We hold body at 400 because
+     500 across all running copy collapses the weight contrast
+     between --type-body and --type-body-strong, costing us a
+     hierarchy signal to buy legibility that size and 7:1 contrast
+     already deliver. This is a judgement call, not a finding — if
+     usability testing with 65+ patients says otherwise, raise
+     --weight-body to 500 and the whole ramp follows. Never ship
+     ≤300, and never a condensed face.
+
+   • ALL CAPS in --type-overline only. NIA: caps in headlines/
+     labels only, never body. (The folk claim that caps are always
+     harder to read is not quite true — Arditi & Cho 2007 found a
+     caps ADVANTAGE near the acuity limit — but that advantage is
+     gone at the sizes we ship here, and the word-shape loss isn't.)
+
+   • rem, not px. Browser zoom scales px fine, so px does not break
+     WCAG SC 1.4.4 — that claim is folklore. But px DOES ignore the
+     browser's default-font-size preference, and 65+ users are the
+     group most likely to have set one and to expect it honored.
+     rem inherits it. Sizes are rem; borders/shadows stay px.
+     1rem = the user's browser default, typically 16px.
+
+   • Contrast: target 7:1 on body (WCAG SC 1.4.6 AAA), not 4.5:1.
+     Not gold-plating — W3C's own rationale states 4.5:1 was chosen
+     to compensate for "approximately 20/40 vision … commonly
+     reported as typical visual acuity of elders at roughly age 80."
+     4.5:1 is calibrated to be *barely adequate* for our median
+     user. Enforced in tokens/semantic.css, noted here because it
+     is inseparable from legibility.
+     https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html
+   ============================================================ */
+:root {
+  /* ---------- Families ---------- */
+  --font-display: "Boehringer Forward Head", "Helvetica Neue", Arial, sans-serif;
+  --font-body:    "Boehringer Forward Text", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ---------- Weights ---------- */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-bold:    700;
+  /* Body weight, hoisted so the 400-vs-500 call above is one edit. */
+  --weight-body:  var(--weight-regular);
+  /* UI affordances (buttons, inputs, tabs) — medium, per NIA. */
+  --weight-ui:    var(--weight-medium);
+
+  /* ---------- Size ramp ----------
+     Named --font-size-* (NOT --text-*): --text-strong/--text-muted
+     etc. in semantic.css are COLOR tokens. The old --text-<size>
+     names collided with them and made the ramp ungreppable.
+
+     Two tiers on purpose. The text tier steps finely (14→16→18→20)
+     because those sizes do functional work and need near neighbours.
+     The heading tier steps coarsely (~1.25×) because that ratio IS
+     the hierarchy — the old ramp's 18/20/22/26 crowd is exactly why
+     headings read as mush. Nothing lives between 20px and 24px. */
+
+  /* Text tier — Boehringer Forward Text */
+  --font-size-meta:      0.875rem;  /* 14px — metadata floor, sparing */
+  --font-size-sm:        1rem;      /* 16px — dense/secondary UI */
+  --font-size-base:      1.125rem;  /* 18px — DEFAULT body & labels */
+  --font-size-lg:        1.25rem;   /* 20px — reading passages, subtitles */
+
+  /* Heading tier — Boehringer Forward Head, ~1.25× steps */
+  --font-size-heading:   1.5rem;    /* 24px — card & block headings */
+  --font-size-title-3:   1.875rem;  /* 30px */
+  --font-size-title-2:   2.375rem;  /* 38px */
+  --font-size-title-1:   3rem;      /* 48px — page titles */
+  --font-size-display-3: 3.75rem;   /* 60px */
+  --font-size-display-2: 4.5rem;    /* 72px */
+  --font-size-display-1: 5.5rem;    /* 88px */
+
+  /* ---------- Line heights ---------- */
+  --leading-tight:   1.05;  /* display only */
+  --leading-snug:    1.15;  /* large titles */
+  --leading-heading: 1.3;   /* headings */
+  --leading-ui:      1.2;   /* single-line labels */
+  --leading-normal:  1.55;  /* body */
+  --leading-relaxed: 1.6;   /* reading passages */
+
+  /* ---------- Tracking ---------- */
+  --tracking-tight:  -0.02em;
+  --tracking-snug:   -0.01em;
+  --tracking-normal: 0;
+  --tracking-caps:   0.08em;  /* overline/caps only */
+
+  /* ============================================================
+     COMPOSITE ROLES — the type ladder product code should use.
+     Boehringer Forward Head carries Display + Title + Heading;
+     Boehringer Forward Text carries Subtitle + Body + UI + Meta.
+
+     In JSX, apply the same two declarations:
+       style={{ font: "var(--type-body)",
+                letterSpacing: "var(--type-body-tracking)" }}
+     Always ship the tracking line even when it resolves to 0 —
+     the pair is the contract, and `font:` shorthand resets
+     nothing about letter-spacing.
+     ============================================================ */
+
+  /* Display — marketing hero moments only. Head Bold.
+     A patient portal should rarely reach this tier. */
+  --type-display-1: var(--weight-bold) var(--font-size-display-1)/1.05 var(--font-display);
+  --type-display-1-tracking: -0.02em;
+  --type-display-2: var(--weight-bold) var(--font-size-display-2)/1.05 var(--font-display);
+  --type-display-2-tracking: -0.018em;
+  --type-display-3: var(--weight-bold) var(--font-size-display-3)/1.08 var(--font-display);
+  --type-display-3-tracking: -0.016em;
+
+  /* Title — page & major section titles, Head Bold */
+  --type-title-1: var(--weight-bold) var(--font-size-title-1)/1.12 var(--font-display);
+  --type-title-1-tracking: -0.014em;
+  --type-title-2: var(--weight-bold) var(--font-size-title-2)/1.15 var(--font-display);
+  --type-title-2-tracking: -0.01em;
+  --type-title-3: var(--weight-bold) var(--font-size-title-3)/1.2 var(--font-display);
+  --type-title-3-tracking: -0.008em;
+
+  /* Heading — card & block headings, Head Bold.
+     24px against an 18px body = 1.33×, a legible step. The old
+     20px-over-16px pairing was 1.25× and read as "slightly bigger
+     body", which is the hierarchy complaint this ramp answers. */
+  --type-heading: var(--weight-bold) var(--font-size-heading)/1.3 var(--font-display);
+  --type-heading-tracking: -0.006em;
+
+  /* Subtitle — supporting deck under a title, Text Medium */
+  --type-subtitle-1: var(--weight-medium) var(--font-size-lg)/1.45 var(--font-body);
+  --type-subtitle-1-tracking: 0;
+  --type-subtitle-2: var(--weight-medium) var(--font-size-base)/1.45 var(--font-body);
+  --type-subtitle-2-tracking: 0;
+
+  /* Body — running copy, Text Regular.
+     --type-body-lg is for sustained reading (article/letter bodies).
+     --type-body is the default for everything else.
+     --type-body-sm is dense/secondary UI — not for long passages. */
+  --type-body-lg: var(--weight-body) var(--font-size-lg)/1.6 var(--font-body);
+  --type-body-lg-tracking: 0;
+  --type-body: var(--weight-body) var(--font-size-base)/1.55 var(--font-body);
+  --type-body-tracking: 0;
+  --type-body-strong: var(--weight-medium) var(--font-size-base)/1.55 var(--font-body);
+  --type-body-strong-tracking: 0;
+  --type-body-sm: var(--weight-body) var(--font-size-sm)/1.5 var(--font-body);
+  --type-body-sm-tracking: 0;
+
+  /* Label — buttons, inputs, chips, UI affordances, Text Medium.
+     --type-label is 18px: a button label is the single most
+     important word on the screen and has no business being
+     smaller than the prose around it. (No primary source gives a
+     button-label minimum; treating it as body text is the
+     defensible read.) --type-label-sm is 16px and is the floor
+     for any interactive label. */
+  --type-label-lg: var(--weight-ui) var(--font-size-lg)/1.2 var(--font-body);
+  --type-label-lg-tracking: 0;
+  --type-label: var(--weight-ui) var(--font-size-base)/1.2 var(--font-body);
+  --type-label-tracking: 0;
+  --type-label-sm: var(--weight-ui) var(--font-size-sm)/1.2 var(--font-body);
+  --type-label-sm-tracking: 0;
+
+  /* Meta — timestamps, helper & hint text, Text Regular.
+     14px, the floor. Replaces the old 12px --type-caption.
+     If it matters enough to read, it is --type-body-sm or larger. */
+  --type-meta: var(--weight-body) var(--font-size-meta)/1.45 var(--font-body);
+  --type-meta-tracking: 0;
+  /* Meta at medium — badges/pills, where the fill is doing the work
+     and 500 keeps the numeral legible against a tinted background. */
+  --type-meta-strong: var(--weight-medium) var(--font-size-meta)/1.45 var(--font-body);
+  --type-meta-strong-tracking: 0;
+
+  /* Overline — eyebrows / section kickers, Text Bold, ALL CAPS.
+     Caps are legitimate here (short, non-prose, per NIA). The
+     +0.08em is typographic craft for caps, not an accessibility
+     finding — no primary evidence either way. */
+  --type-overline: var(--weight-bold) var(--font-size-meta)/1.2 var(--font-body);
+  --type-overline-tracking: 0.08em;
+
+  /* ---------- Measure ----------
+     45–90ch, 66 a good target (USWDS). No age-specific evidence
+     that 65+ needs a different measure — this is a sensible
+     default, not a senior-specific fact. */
+  --measure-body: 66ch;
+  --measure-narrow: 45ch;
+
+  /* ---------- Deprecated aliases ----------
+     Kept so the ramp change does not hard-break older markup.
+     --type-caption was 12px and is below the floor; it now
+     resolves to 14px --type-meta. Migrate and delete these. */
+  --type-caption: var(--type-meta);
+  --type-caption-tracking: var(--type-meta-tracking);
+}

@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Building the Design System with Claude · frog</title>
+<meta name="description" content="How the BI Patient Portal design system actually got built with Claude Code and VS Code, the process, the dead ends, and what still needed a hand."/>
+<!-- Real BI design-system stylesheet: fonts, tokens, semantics — copied straight from
+     the project. This is what actually makes this deck render in the real BI typeface
+     and colors, and what powers the live component demos further down. -->
+<link rel="stylesheet" href="assets/ds/styles.css"/>
+<style>
+:root{
+  /* Real BI design-system tokens (from tokens/colors.css + typography.css) — no
+     external fonts loaded: the actual "Boehringer Forward" faces are licensed, so
+     we reference them by name and fall back cleanly to Helvetica Neue/Arial. */
+  --font-display: "Boehringer Forward Head","Helvetica Neue",Arial,sans-serif;
+  --font-body: "Boehringer Forward Text","Helvetica Neue",Arial,sans-serif;
+
+  --forest:#08312A;      /* BI dark green — brand primary */
+  --forest-hover:#16544A;
+  --mint:#00E47C;        /* BI accent green — dark surfaces / CTA */
+  --mint-press:#00B362;
+  --bg-page:#F4F5F3;     /* BI light gray — page surface */
+  --bg-white:#FFFFFF;    /* BI card surface */
+  --warm-gray:#E4E2DC;
+
+  /* BI secondary ramp — used sparingly, as small accents only (chips, dots),
+     never as full-bleed backgrounds. Mapped onto the deck's original 6 color
+     slots so the rail/JS logic below needs no changes. */
+  --orange:#F07E68;  /* red */
+  --blue:#79D0D6;    /* blue */
+  --green:#00E47C;   /* accent green */
+  --yellow:#F5D33C;  /* yellow */
+  --lilac:#B19CE6;   /* violet */
+  --salmon:#F07E68;  /* red, reused */
+
+  --jascayd:#6A2CFC;  /* Jascayd primary, for the multi-brand chapter only */
+  --lime:#DCF153;     /* Jascayd accent */
+
+  --ink:#0C1714; --ink-60:rgba(12,23,20,.62); --ink-40:rgba(12,23,20,.42);
+  --pad: clamp(28px,5vw,110px);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-body);color:var(--ink);background:var(--forest);-webkit-font-smoothing:antialiased}
+
+.grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.05;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+.progress{position:fixed;top:0;left:0;height:3px;background:var(--ink);z-index:70;width:0;transition:width .2s linear}
+.wordmark{position:fixed;top:20px;left:var(--pad);z-index:65;font-family:var(--font-body);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);mix-blend-mode:difference;filter:invert(1)}
+.counter{position:fixed;top:20px;right:var(--pad);z-index:65;font-family:var(--font-body);font-size:12px;color:var(--ink);mix-blend-mode:difference;filter:invert(1)}
+.rail{position:fixed;right:22px;top:50%;transform:translateY(-50%);z-index:65;display:flex;flex-direction:column;gap:11px;opacity:0;pointer-events:none;transition:opacity .3s}
+.rail.show{opacity:1;pointer-events:auto}
+.rail i{position:relative;width:9px;height:9px;border-radius:50%;background:rgba(8,49,42,.20);cursor:pointer;transition:.25s;border:1.5px solid rgba(8,49,42,.28)}
+.rail i.on{transform:scale(1.5);background:var(--mint);border-color:var(--mint)}
+.rail i::after{content:attr(data-label);position:absolute;right:calc(100% + 14px);top:50%;transform:translateY(-50%) translateX(6px);background:#fff;color:var(--ink);font-family:var(--font-body);font-size:12px;font-weight:500;padding:8px 14px;border-radius:100px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;box-shadow:0 10px 30px rgba(8,49,42,.16)}
+.rail i:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
+
+.scroll{height:100vh;height:100svh;overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth}
+.scroll::-webkit-scrollbar{display:none}
+.sec{min-height:100vh;min-height:100svh;scroll-snap-align:start;position:relative;display:flex;align-items:center;padding:max(var(--pad),64px) var(--pad);overflow:hidden}
+/* Keep it simple: BI's own product surfaces are almost all white/light-gray with
+   dark green as the one strong brand color — so slides alternate two calm neutral
+   surfaces instead of cycling saturated blocks. data-color still drives the small
+   accents (eyebrow bar, chip, rail dot) via the variables above. */
+.scroll > .sec{background:var(--bg-page)}
+.scroll > .sec:nth-of-type(even){background:var(--bg-white)}
+.sec[data-color] .eyebrow .bar{background:var(--forest)}
+.eyebrow{font-family:var(--font-body);font-size:13px;letter-spacing:.16em;text-transform:uppercase;display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.eyebrow .n{font-weight:700;color:var(--forest)}
+.eyebrow .bar{height:1.5px;width:34px;background:var(--ink);display:inline-block}
+.disp{font-family:var(--font-display);font-weight:800;line-height:.92;letter-spacing:-.025em}
+.ftitle{font-family:var(--font-display);font-weight:800;line-height:.9;letter-spacing:-.03em;font-size:clamp(46px,7.5vw,108px)}
+.ftitle-sm{font-family:var(--font-display);font-weight:800;line-height:.95;letter-spacing:-.025em;font-size:clamp(32px,4.4vw,62px)}
+.lede{font-size:clamp(19px,2.1vw,29px);line-height:1.32;font-weight:400;max-width:22ch;margin-top:24px;letter-spacing:-.01em}
+.body{font-size:clamp(16px,1.3vw,20px);line-height:1.5;color:var(--ink-60);max-width:40ch}
+.pts{list-style:none;margin-top:28px;display:flex;flex-direction:column;gap:14px;max-width:46ch}
+.pts li{position:relative;padding-left:24px;font-size:clamp(14.5px,1.15vw,17.5px);line-height:1.45;font-weight:450}
+.pts li::before{content:"";position:absolute;left:0;top:.55em;width:8px;height:8px;background:var(--ink);transform:rotate(45deg)}
+.dlbtn{display:inline-flex;align-items:center;gap:12px;margin-top:22px;width:max-content;font-family:var(--font-body);font-weight:700;font-size:16px;letter-spacing:.01em;padding:0 28px;height:60px;border-radius:100px;background:var(--mint);color:var(--forest);text-decoration:none;box-shadow:0 14px 32px rgba(8,49,42,.18);transition:transform .2s,background .2s}
+.dlbtn:hover{transform:translateY(-2px);background:var(--mint-press)}
+.dlbtn .arrow{display:inline-flex;color:var(--forest)}
+.dlbtn .arrow svg{width:22px;height:22px}
+.dlsub{font-family:var(--font-body);font-size:11.5px;color:var(--ink-40);margin-top:10px}
+
+.feat .wrap{display:grid;grid-template-columns:1fr 1.05fr;gap:clamp(24px,4vw,72px);align-items:center;width:100%;max-width:1500px;margin:0 auto}
+.stage{position:relative;height:min(74vh,640px);display:flex;align-items:center;justify-content:center}
+img.shot{display:block;max-width:100%;height:auto;border-radius:18px}
+.tile{border-radius:18px;overflow:hidden;box-shadow:0 24px 70px rgba(8,49,42,.14);background:#000}
+.tile img{display:block;width:100%;height:100%;object-fit:cover}
+
+[data-anim]{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0s)}
+.sec.in [data-anim]{opacity:1;transform:none}
+[data-rise]{opacity:0;transform:translateY(40px) scale(.97);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0s)}
+.sec.in [data-rise]{opacity:1;transform:none}
+
+#cover .inner{position:relative;z-index:2;width:100%;max-width:1500px;margin:0 auto}
+.lockup{font-family:var(--font-display);font-weight:800;font-size:clamp(15px,1.4vw,20px);letter-spacing:.02em;display:flex;align-items:center;gap:12px;margin-bottom:30px}
+.lockup .x{font-weight:500;opacity:.6}
+.meta{font-family:var(--font-body);font-size:14px;line-height:1.9;margin-top:36px}
+.scrollhint{position:absolute;bottom:30px;left:0;font-family:var(--font-body);font-size:12px;letter-spacing:.05em;display:flex;align-items:center;gap:8px;z-index:2}
+.scrollhint .arrow{animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(5px)}}
+
+#thesis .q{font-family:var(--font-body);font-weight:400;font-size:clamp(28px,4.2vw,60px);line-height:1.1;letter-spacing:-.02em;max-width:20ch;position:relative;z-index:2}
+#thesis .src{font-family:var(--font-body);font-size:13px;margin-top:34px;letter-spacing:.04em;position:relative;z-index:2}
+
+#index .idxwrap{width:100%;max-width:1400px;margin:0 auto}
+.idxlist{margin-top:30px;border-top:2px solid var(--ink)}
+.idxrow{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;padding:18px 6px;border-bottom:2px solid var(--ink);cursor:pointer;transition:padding-left .25s,background .2s}
+.idxrow:hover{padding-left:18px;background:rgba(8,49,42,.06)}
+.idxrow .ix{font-family:var(--font-body);font-weight:700;font-size:14px}
+.idxrow .nm{font-family:var(--font-display);font-weight:700;font-size:clamp(17px,1.9vw,28px);letter-spacing:-.02em}
+
+.promptcard{background:var(--bg-white);border-radius:22px;padding:clamp(26px,3.4vw,52px);box-shadow:0 30px 80px rgba(8,49,42,.11);max-width:760px}
+.pblock{margin-bottom:26px}
+.pblock:last-child{margin-bottom:0}
+.phand{font-family:var(--font-body);font-style:italic;font-weight:700;font-size:clamp(26px,3.2vw,40px);line-height:1}
+.pdesc{font-family:var(--font-body);font-size:clamp(12.5px,1.1vw,15px);color:var(--ink-60);line-height:1.7;margin-top:10px;padding-left:42px}
+
+.takewrap{width:100%;max-width:1300px;margin:0 auto}
+.takegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(18px,2.4vw,34px);margin-top:34px}
+.take{border-top:2px solid var(--ink);padding-top:18px}
+.take .th{font-family:var(--font-display);font-weight:700;font-size:clamp(18px,1.8vw,26px);line-height:1.1;letter-spacing:-.01em}
+.take .td{font-size:clamp(14px,1.15vw,17px);line-height:1.5;color:var(--ink-60);margin-top:14px}
+
+#thanks .tk{font-family:var(--font-display);font-weight:800;font-size:clamp(60px,12vw,180px);line-height:.86;letter-spacing:-.04em;position:relative;z-index:3}
+.links{position:relative;z-index:3;margin-top:30px;display:flex;flex-direction:column;gap:7px;font-family:var(--font-body);font-size:14px;color:var(--ink-60)}
+
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+@media(max-width:860px){
+  .feat .wrap{grid-template-columns:1fr;gap:26px}
+  .stage{height:auto;min-height:300px;order:2;margin-top:8px}
+  .ftitle{font-size:clamp(40px,12vw,64px)}
+  .takegrid{grid-template-columns:1fr}
+  .rail{display:none}
+  .scroll{scroll-snap-type:none}
+}
+@media(prefers-reduced-motion:reduce){
+  [data-anim],[data-rise]{transition:none!important;opacity:1!important;transform:none!important}
+  .scrollhint .arrow{animation:none}
+  html,.scroll{scroll-behavior:auto}
+}
+
+.sec > *{position:relative;z-index:2}
+#cover,#thanks{--ink:#fff;--ink-60:rgba(255,255,255,.72);--ink-40:rgba(255,255,255,.55);background:var(--forest)!important;color:#fff}
+#cover .lockup,#thanks .lockup{color:var(--mint)}
+#cover .eyebrow .bar,#thanks .eyebrow .bar{background:var(--mint)}
+#cover{padding-bottom:clamp(200px,30vh,320px)}
+#cover .scrollhint{bottom:calc(clamp(190px,29vh,310px) + 14px);z-index:3}
+.marquee{position:absolute;bottom:0;left:0;width:100%;height:clamp(190px,30vh,320px);background:var(--bg-page);overflow:hidden;display:flex;align-items:center;z-index:1}
+.mtrack{display:flex;align-items:center;animation:scrollx 40s linear infinite;will-change:transform}
+.mtrack img{height:clamp(240px,44vh,440px);width:auto;display:block;flex:0 0 auto;margin-right:-4px}
+@keyframes scrollx{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.mtrack{animation:none}}
+@media(max-width:860px){.marquee{height:150px}.mtrack img{height:190px}}
+
+.fab{position:fixed;right:26px;bottom:26px;z-index:66;display:flex;align-items:center;gap:12px;background:none;border:0;cursor:pointer;padding:0;opacity:0;pointer-events:none;transform:translateY(12px);transition:opacity .35s,transform .35s}
+.fab.show{opacity:1;pointer-events:auto;transform:none}
+.fab .fab-label{font-family:var(--font-body);font-size:12px;letter-spacing:.08em;text-transform:uppercase;background:#fff;color:var(--ink);padding:10px 16px;border-radius:100px;box-shadow:0 10px 30px rgba(8,49,42,.11);opacity:0;transform:translateX(10px);transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap}
+.fab .fab-icon{width:62px;height:62px;border-radius:50%;background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:23px;line-height:1;box-shadow:0 10px 30px rgba(0,0,0,.2);transition:transform .25s}
+.fab:not(.top) .fab-icon{animation:bob 1.8s ease-in-out infinite}
+.fab.show .fab-label{opacity:1;transform:none}
+.fab:hover .fab-icon{transform:scale(1.06)}
+@media(max-width:860px){.fab{right:16px;bottom:16px}.fab .fab-icon{width:54px;height:54px}}
+@media(prefers-reduced-motion:reduce){.fab .fab-icon{animation:none}}
+
+.herobox{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:auto;border-radius:14px;box-shadow:0 24px 60px rgba(8,49,42,.16)}
+.heroimg{max-width:100%;max-height:100%;width:auto;height:auto;display:block;margin:auto;border-radius:14px;box-shadow:0 24px 60px rgba(8,49,42,.13);object-fit:cover}
+
+.exgrid{display:grid;gap:clamp(20px,3vw,48px);width:100%;max-width:min(1200px,94vw);margin:18px auto 0;align-items:start;justify-items:center}
+.excell{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%}
+.excell img{max-width:100%;width:auto;height:auto;object-fit:contain;display:block;filter:drop-shadow(0 16px 32px rgba(8,49,42,.12));border-radius:10px}
+.exlabel2{font-family:var(--font-body);font-size:clamp(10px,1vw,13px);letter-spacing:.03em;background:var(--ink);color:#fff;padding:7px 13px;border-radius:100px;white-space:nowrap}
+.exg-2col{grid-template-columns:1fr 1fr}
+.exg-2col .excell img{max-height:clamp(150px,32vh,340px)}
+.exg-3col{grid-template-columns:repeat(3,1fr)}
+@media(max-width:860px){.exg-2col,.exg-3col{grid-template-columns:1fr!important}}
+
+/* placeholders for unsupplied screenshots */
+.placeholder{border:2px dashed rgba(8,49,42,.28);border-radius:14px;padding:24px;background:rgba(255,255,255,.4);font-family:var(--font-body);font-size:12.5px;color:var(--ink-60);display:flex;flex-direction:column;gap:8px;justify-content:center;min-height:150px;width:100%;max-width:100%}
+.placeholder b{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+
+/* conceptual mock diagrams built from real content, not screenshots */
+.mockcard{background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(8,49,42,.14);padding:clamp(22px,3vw,36px);width:100%;max-width:520px}
+.chainrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.chip2{font-family:var(--font-body);font-size:12px;letter-spacing:.02em;background:var(--forest);color:#fff;padding:8px 12px;border-radius:100px;white-space:nowrap}
+.chainrow .arw{color:var(--ink-40);font-size:14px}
+.steplist{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step .sn{font-family:var(--font-body);font-weight:700;font-size:13px;background:var(--forest);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.step .sd{font-size:14.5px;line-height:1.45;color:var(--ink)}
+.principlegrid{display:flex;flex-direction:column;gap:16px;margin-top:6px}
+.principle{display:flex;gap:12px;align-items:baseline}
+.principle .pn{font-family:var(--font-body);font-size:11px;color:var(--ink-40);flex:0 0 auto}
+.principle .pt{font-family:var(--font-display);font-weight:700;font-size:16px}
+.attemptgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;width:100%;max-width:1300px;margin:20px auto 0}
+.attempt{background:#fff;border-radius:16px;padding:22px;box-shadow:0 18px 44px rgba(8,49,42,.11)}
+.attempt .an{font-family:var(--font-body);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-40)}
+.attempt .at{font-family:var(--font-display);font-weight:700;font-size:19px;margin-top:8px}
+.attempt .ad{font-size:13.5px;line-height:1.5;color:var(--ink-60);margin-top:10px}
+.attempt .as{display:inline-block;margin-top:14px;font-family:var(--font-body);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;background:var(--ink);color:#fff;padding:5px 10px;border-radius:100px}
+@media(max-width:860px){.attemptgrid{grid-template-columns:1fr}}
+.docmock{background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(8,49,42,.14);width:100%;max-width:560px;overflow:hidden}
+.doctabs{display:flex;gap:4px;padding:14px 16px 0;font-family:var(--font-body);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.doctabs span{padding:8px 12px;border-radius:8px 8px 0 0;color:var(--ink-40)}
+.doctabs span.on{background:var(--forest);color:#fff}
+.docbody{padding:20px;border-top:1px solid rgba(8,49,42,.08)}
+.specrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.specrow div{background:var(--bg-page);border-radius:8px;height:34px}
+.flowchain{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:6px}
+.flowchain .fnode{background:#fff;border-radius:12px;padding:12px 16px;font-family:var(--font-body);font-size:12px;box-shadow:0 12px 30px rgba(8,49,42,.10)}
+.toolflow{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;justify-content:center}
+.toolnode{display:flex;flex-direction:column;align-items:center;gap:10px;background:#fff;border-radius:16px;padding:18px 16px;box-shadow:0 12px 30px rgba(8,49,42,.10);min-width:104px}
+.toolnode .ticon{width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 6px 16px rgba(8,49,42,.14);overflow:hidden}
+.toolnode .ticon img{max-width:68%;max-height:68%;object-fit:contain;display:block}
+.toolnode .tlabel{font-family:var(--font-body);font-weight:700;font-size:12.5px;color:var(--ink);text-align:center}
+.toolnode .tsub{font-family:var(--font-body);font-size:10.5px;color:var(--ink-40);text-align:center;margin-top:-6px}
+.toolarw{display:flex;align-items:center;color:var(--ink-40);font-size:20px;flex:0 0 auto;align-self:center}
+@media(max-width:640px){.toolarw{transform:rotate(90deg)}}
+
+/* Ch.5 — a simplified real doc page for Button: Demo/Code/Anatomy/Properties/Specimen/Tokens */
+.btndoc{background:#fff;border-radius:20px;box-shadow:0 24px 60px rgba(8,49,42,.14);overflow:hidden;width:100%}
+.btndoc-tabs{display:flex;gap:2px;padding:14px 22px 0;font-family:var(--font-body);font-size:11px;letter-spacing:.04em;text-transform:uppercase;flex-wrap:wrap;border-bottom:1px solid rgba(8,49,42,.08)}
+.btndoc-tabs span{padding:10px 14px;border-radius:8px 8px 0 0;color:var(--ink-40);cursor:pointer;user-select:none}
+.btndoc-tabs span.on{background:var(--forest);color:#fff}
+.btndoc-body{padding:30px 32px;height:560px;overflow-y:auto}
+.btndoc-row{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.btndoc-swatch{background:var(--bg-page);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:12px;align-items:flex-start;flex:1 1 220px}
+.btndoc-swatch.dark{background:var(--forest)}
+.btndoc-swatch .swlabel{font-family:var(--font-body);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-40)}
+.btndoc-swatch.dark .swlabel{color:rgba(255,255,255,.55)}
+.btndoc-section+.btndoc-section{margin-top:28px}
+.btndoc-sectitle{font-family:var(--font-body);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-40);margin-bottom:12px}
+.btndoc-code{background:var(--forest);color:#fff;border-radius:10px;padding:18px 20px;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.75;overflow-x:auto;white-space:pre}
+/* Anatomy — same stage+legend treatment as the real Button.card.html doc page */
+.btndoc-anatomy-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center}
+.btndoc-anatomy-stage{position:relative;background:linear-gradient(var(--bg-page) 1px,transparent 1px) 0 0/100% 16px,#fafbfa;border:1px dashed rgba(8,49,42,.22);border-radius:12px;min-height:220px;display:flex;align-items:center;justify-content:center;padding:40px}
+.btndoc-anatomy-btn{position:relative;display:inline-flex;align-items:center;gap:10px;height:52px;padding:0 24px;background:var(--forest);color:#fff;border:1.5px solid var(--forest);border-radius:var(--radius-pill);font-family:var(--font-body);font-size:15px;font-weight:600;white-space:nowrap}
+.btndoc-marker{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--forest);color:#fff;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px var(--bg-page);z-index:2}
+.btndoc-legend{list-style:none;margin:0;padding:0}
+.btndoc-legend li{display:grid;grid-template-columns:24px 1fr;gap:12px;padding:11px 0;border-bottom:1px solid rgba(8,49,42,.08)}
+.btndoc-legend li:last-child{border-bottom:0}
+.btndoc-legend .num{width:22px;height:22px;border-radius:50%;background:var(--forest);color:#fff;font-family:ui-monospace,monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.btndoc-legend .pt-name{font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--ink)}
+.btndoc-legend .pt-spec{font-size:12.5px;color:var(--ink-60);line-height:1.5;margin-top:3px}
+.btndoc-legend .pt-spec code{font-family:ui-monospace,monospace;font-size:11.5px;background:var(--bg-page);padding:1px 5px;border-radius:5px}
+@media(max-width:860px){.btndoc-anatomy-grid{grid-template-columns:1fr}}
+.btndoc-proptable{width:100%;border-collapse:collapse;font-size:13px}
+.btndoc-proptable th{text-align:left;font-family:var(--font-body);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-40);padding:0 14px 10px 0;border-bottom:1px solid rgba(8,49,42,.1)}
+.btndoc-proptable td{padding:11px 14px 11px 0;border-bottom:1px solid rgba(8,49,42,.06);vertical-align:top;color:var(--ink)}
+.btndoc-proptable td:first-child{font-family:ui-monospace,monospace;font-weight:700;color:var(--forest);white-space:nowrap}
+.btndoc-proptable td:nth-child(2){font-family:ui-monospace,monospace;font-size:12px;color:var(--ink-60);white-space:nowrap}
+/* Specimen — one real matrix table (state × icon config) at a time, same grid the
+   real Button.card.html doc page uses, with a variant switcher above it */
+.btndoc-vswitch{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.btndoc-vnav{width:28px;height:28px;border-radius:50%;border:1px solid rgba(8,49,42,.15);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--ink);flex:0 0 auto}
+.btndoc-vnav:hover{background:var(--bg-page)}
+.btndoc-vtabs{display:flex;gap:6px;flex-wrap:wrap}
+.btndoc-vtabs span{font-family:var(--font-body);font-size:12px;padding:7px 13px;border-radius:100px;background:var(--bg-page);color:var(--ink-60);cursor:pointer;white-space:nowrap}
+.btndoc-vtabs span.on{background:var(--forest);color:#fff}
+.btndoc-variant-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.btndoc-variant-head h3{font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--ink);margin:0}
+.btndoc-variant-head .fig{font-family:ui-monospace,monospace;font-size:11px;color:var(--ink-40)}
+.btndoc-matrix{display:grid;grid-template-columns:minmax(84px,110px) repeat(3,1fr);border:1px solid rgba(8,49,42,.12);border-radius:12px;overflow:hidden}
+.btndoc-matrix .mcell{padding:12px 14px;border-right:1px solid rgba(8,49,42,.1);border-bottom:1px solid rgba(8,49,42,.1);display:flex;align-items:center;min-height:52px}
+.btndoc-matrix .mcell.colhead,.btndoc-matrix .mcell.rowhead,.btndoc-matrix .mcell.corner{background:var(--bg-page)}
+.btndoc-matrix .colhead,.btndoc-matrix .rowhead{font-family:var(--font-body);font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-40);font-weight:700}
+.btndoc-matrix .rowhead{text-transform:capitalize}
+.btndoc-matrix.dark{background:var(--forest);border-color:rgba(255,255,255,.14)}
+.btndoc-matrix.dark .mcell{border-color:rgba(255,255,255,.12)}
+.btndoc-matrix.dark .mcell.colhead,.btndoc-matrix.dark .mcell.rowhead,.btndoc-matrix.dark .mcell.corner{background:rgba(255,255,255,.04)}
+.btndoc-matrix.dark .colhead,.btndoc-matrix.dark .rowhead{color:rgba(255,255,255,.62)}
+.btndoc-specimen-btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;border-radius:var(--radius-pill);white-space:nowrap;border-style:solid;border-width:1.5px;height:40px;padding:0 16px;font-family:var(--font-body);font-size:12.5px;font-weight:600}
+.btndoc-tokenlist{display:flex;flex-direction:column;gap:8px}
+.btndoc-tokenlist code{display:block;background:var(--bg-page);padding:9px 12px;border-radius:8px;font-family:ui-monospace,monospace;font-size:12px;color:var(--ink)}
+@media(max-width:860px){.btndoc-matrix{grid-template-columns:80px repeat(3,1fr)}}
+
+/* Ch.1 — reference carousel: what actually got fed to Claude. Auto-scrolls gently at
+   rest; click-and-drag (mouse) or touch-swipe scrolls through it manually. Full-bleed:
+   breaks out of the section's max-width/padding to reach the true viewport edges,
+   independent of whatever ancestor width it's nested in. */
+.refcarousel{position:relative;margin-top:8px;width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw)}
+.refcarousel::before,.refcarousel::after{content:"";position:absolute;top:0;bottom:0;width:min(9vw,90px);z-index:2;pointer-events:none}
+.refcarousel::before{left:0;background:linear-gradient(90deg,var(--bg-page),transparent)}
+.refcarousel::after{right:0;background:linear-gradient(270deg,var(--bg-page),transparent)}
+/* extra vertical padding so card shadows have room and don't get clipped by the
+   scroll container's overflow-y:hidden; negative margin cancels the added height.
+   Bottom gets more room than top since the shadow is offset downward. */
+.reftrack{display:flex;gap:22px;overflow-x:auto;overflow-y:hidden;cursor:grab;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:40px var(--pad) 90px;margin:-40px 0 -90px}
+.reftrack::-webkit-scrollbar{display:none}
+.reftrack.dragging{cursor:grabbing;scroll-behavior:auto;user-select:none}
+.refcard{flex:0 0 auto;width:min(88vw,560px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 48px rgba(8,49,42,.14)}
+.refthumb{width:100%;height:300px;object-fit:cover;object-position:top;display:block;background:var(--bg-page);pointer-events:none}
+.refcap{padding:16px 20px 20px}
+.reftag{font-family:var(--font-body);font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--forest);display:block;margin-bottom:5px}
+.reflabel{font-family:var(--font-body);font-size:15px;color:var(--ink);line-height:1.4}
+/* stacked-sketch card: two photos overlapping slightly, like paper on a desk */
+.refstack{position:relative;width:100%;height:300px;background:var(--bg-page);overflow:hidden}
+.refstack img{position:absolute;width:64%;height:auto;border:6px solid #fff;box-shadow:0 10px 26px rgba(8,49,42,.18);border-radius:4px}
+.refstack img:first-child{top:10%;left:5%;transform:rotate(-7deg)}
+.refstack img:last-child{top:16%;left:33%;transform:rotate(5deg)}
+
+/* real type ramp + live component demos (rendered by the real _ds_bundle.js) */
+.ramp{display:flex;flex-direction:column;gap:14px}
+.ramprow{display:flex;align-items:baseline;justify-content:space-between;gap:18px;border-bottom:1px solid rgba(8,49,42,.08);padding-bottom:10px}
+.ramprow:last-child{border-bottom:0;padding-bottom:0}
+.ramprow .rampmeta{font-family:var(--font-body);font-size:11.5px;color:var(--ink-40);white-space:nowrap;flex:0 0 auto}
+.livegrid{display:flex;flex-direction:column;gap:10px}
+.liverow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.liverow .rowlabel{font-family:var(--font-body);font-size:11.5px;text-transform:capitalize;color:var(--ink-40);width:64px;flex:0 0 auto}
+.brandswitch{display:inline-flex;background:rgba(8,49,42,.08);border-radius:100px;padding:4px;gap:4px}
+.brandbtn{font-family:var(--font-body);font-size:13px;font-weight:500;border:0;background:transparent;color:var(--ink-60);padding:9px 18px;border-radius:100px;cursor:pointer;transition:background .2s,color .2s}
+.brandbtn[data-brand="bi"].on{background:var(--forest);color:#fff}
+.brandbtn[data-brand="jascayd"].on{background:var(--jascayd);color:#fff}
+.brandbtn:not(.on):hover{background:rgba(8,49,42,.12)}
+.flowchain .farw{color:var(--ink-40)}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="progress" id="prog"></div>
+<div class="wordmark">frog &#10005; Claude Code</div>
+<div class="counter"><b id="cur">01</b> / 22</div>
+<div class="rail" id="rail"></div>
+<button class="fab" id="fab" aria-label="Scroll down">
+  <span class="fab-label" id="fabLabel">Scroll</span>
+  <span class="fab-icon" id="fabIcon">&#8595;</span>
+</button>
+
+<div class="scroll" id="scroll">
+
+  <!-- COVER -->
+  <section class="sec" data-color="orange" id="cover">
+    <div class="inner">
+      <div class="lockup" data-anim>BOEHRINGER INGELHEIM <span class="x">&#10005;</span> CLAUDE CODE</div>
+      <h1 class="disp" data-anim style="--d:.06s;font-size:clamp(38px,6.4vw,88px)">Building the<br>design system<br>with Claude</h1>
+      <div class="meta" data-anim style="--d:.1s">A build-process recap for frog<br>Juan Garcia &middot; Senior Visual Designer</div>
+    </div>
+    <div class="scrollhint" data-anim style="--d:.2s"><span class="arrow">&#8595;</span> Scroll</div>
+    <div class="marquee">
+      <div class="mtrack">
+        <img src="assets/carruselinitial/34 vd10.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253568.png" alt=""/>
+        <img src="assets/carruselinitial/33 vd9.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253567.png" alt=""/>
+        <img src="assets/carruselinitial/34 vd10-2.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253565.png" alt=""/>
+        <img src="assets/carruselinitial/33 vd9-1.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253566.png" alt=""/>
+        <img src="assets/carruselinitial/34 vd10-1.svg" alt=""/>
+        <img src="assets/carruselinitial/34 vd10.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253568.png" alt=""/>
+        <img src="assets/carruselinitial/33 vd9.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253567.png" alt=""/>
+        <img src="assets/carruselinitial/34 vd10-2.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253565.png" alt=""/>
+        <img src="assets/carruselinitial/33 vd9-1.svg" alt=""/>
+        <img src="assets/carruselinitial/Frame 2055253566.png" alt=""/>
+        <img src="assets/carruselinitial/34 vd10-1.svg" alt=""/>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTRO -->
+  <section class="sec" data-color="green" id="thesis">
+    <div style="max-width:1400px;margin:0 auto;width:100%">
+      <div class="eyebrow" data-anim>Why this is being shared <span class="bar"></span></div>
+      <h2 class="ftitle" data-anim style="--d:.04s;font-size:clamp(34px,4.8vw,72px)">A repeatable build,<br>not a one-off</h2>
+      <p class="lede" data-anim style="--d:.1s;max-width:56ch">Built end to end with Claude Code, VS Code, and Figma, with AI moving fast on structure and repetition while every accessibility, brand, and craft call still needed a human hand, shared so the same approach can scale to other BI programs and other frog teams.</p>
+    </div>
+  </section>
+
+  <!-- INDEX -->
+  <section class="sec" data-color="blue" id="index">
+    <div class="idxwrap">
+      <div class="eyebrow" data-anim><span class="n">00</span> Eight chapters <span class="bar"></span></div>
+      <h2 class="disp" data-anim style="font-size:clamp(30px,4.6vw,64px)">How it got built</h2>
+      <div class="idxlist">
+        <div class="idxrow" data-jump="foundation" data-anim style="--d:.03s"><span class="ix">01</span><span class="nm">Foundation</span></div>
+        <div class="idxrow" data-jump="accessibility" data-anim style="--d:.06s"><span class="ix">02</span><span class="nm">Accessibility first</span></div>
+        <div class="idxrow" data-jump="tokens" data-anim style="--d:.09s"><span class="ix">03</span><span class="nm">The frog token taxonomy</span></div>
+        <div class="idxrow" data-jump="brands" data-anim style="--d:.12s"><span class="ix">04</span><span class="nm">Two brands, one system</span></div>
+        <div class="idxrow" data-jump="docs" data-anim style="--d:.15s"><span class="ix">05</span><span class="nm">Documentation that teaches itself</span></div>
+        <div class="idxrow" data-jump="deadends" data-anim style="--d:.18s"><span class="ix">06</span><span class="nm">Three dead ends</span></div>
+        <div class="idxrow" data-jump="workflow" data-anim style="--d:.21s"><span class="ix">07</span><span class="nm">My workflow</span></div>
+        <div class="idxrow" data-jump="pipeline" data-anim style="--d:.24s"><span class="ix">08</span><span class="nm">Turning it into a kit</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.1 FOUNDATION -->
+  <section class="sec feat" data-color="salmon" id="foundation">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">01</span> Where it started <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">Foundation</h2>
+        <p class="lede" data-anim style="--d:.08s">Brand references, old-portal screens, and a hand-sketched direction, fed into Claude for a fast first pass.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Started from BI brand refs, screens from the previous portal, and a hand-sketched direction.</li>
+          <li data-anim style="--d:0.16s">Four research-validated principles (status you can trust, accessibility first, adapt to need, build trust) became the brief Claude built toward.</li>
+          <li data-anim style="--d:0.20s">The first pass came together fast, and it made clear exactly how much work &ldquo;fast&rdquo; still leaves on the table.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <img class="heroimg" data-rise src="assets/photo-seniors.jpg" alt="" style="border-radius:18px"/>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-color="salmon" id="foundation-ex">
+    <div style="width:100%;max-width:1440px;margin:0 auto">
+      <div class="eyebrow" data-anim><span class="n">01</span> What actually went in <span class="bar"></span></div>
+
+      <div class="refcarousel" aria-label="Reference material fed to Claude to build the foundation. Drag or swipe to scroll.">
+        <div class="reftrack">
+          <!-- set 1 -->
+          <div class="refcard"><div class="refstack"><img src="assets/ref-sketch-1.png" alt="Hand-drawn paper wireframe of the portal home page, first pass"><img src="assets/ref-sketch-2.png" alt="Hand-drawn paper wireframe of the portal home page, second pass with a video module"></div><div class="refcap"><span class="reftag">Early sketches</span><div class="reflabel">My own paper wireframes, passes 1 &amp; 2</div></div></div>
+          <div class="refcard"><img class="refthumb" src="assets/ref-old-portal.png" alt="Screenshot of the previous CareConnect4Me portal with its program journey stepper"><div class="refcap"><span class="reftag">Old portal</span><div class="reflabel">The previous CareConnect4Me build</div></div></div>
+          <div class="refcard"><img class="refthumb" src="assets/ref-buttons-frog.png" alt="Button reference sheet from frog's own design system, showing every variant and state"><div class="refcap"><span class="reftag">System reference</span><div class="reflabel">frog's button variants &amp; states</div></div></div>
+          <div class="refcard"><img class="refthumb" src="assets/ref-typography-ebay.png" alt="Typography ramp reference sheet from eBay's Evo design system"><div class="refcap"><span class="reftag">System reference</span><div class="reflabel">eBay Evo's type-token ramp</div></div></div>
+          <div class="refcard"><img class="refthumb" src="assets/designprinciples.svg" alt="Slide showing the four design principles: drive to completion, make it effortless, adapt to need, build trust"><div class="refcap"><span class="reftag">Design principles</span><div class="reflabel">The 4 principles, illustrated</div></div></div>
+          <!-- set 2, duplicated for the seamless loop -->
+          <div class="refcard" aria-hidden="true"><div class="refstack"><img src="assets/ref-sketch-1.png" alt=""><img src="assets/ref-sketch-2.png" alt=""></div><div class="refcap"><span class="reftag">Early sketches</span><div class="reflabel">My own paper wireframes, passes 1 &amp; 2</div></div></div>
+          <div class="refcard" aria-hidden="true"><img class="refthumb" src="assets/ref-old-portal.png" alt=""><div class="refcap"><span class="reftag">Old portal</span><div class="reflabel">The previous CareConnect4Me build</div></div></div>
+          <div class="refcard" aria-hidden="true"><img class="refthumb" src="assets/ref-buttons-frog.png" alt=""><div class="refcap"><span class="reftag">System reference</span><div class="reflabel">frog's button variants &amp; states</div></div></div>
+          <div class="refcard" aria-hidden="true"><img class="refthumb" src="assets/ref-typography-ebay.png" alt=""><div class="refcap"><span class="reftag">System reference</span><div class="reflabel">eBay Evo's type-token ramp</div></div></div>
+          <div class="refcard" aria-hidden="true"><img class="refthumb" src="assets/designprinciples.svg" alt=""><div class="refcap"><span class="reftag">Design principles</span><div class="reflabel">The 4 principles, illustrated</div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.2 ACCESSIBILITY -->
+  <section class="sec feat" data-color="yellow" id="accessibility">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">02</span> Make it effortless <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">Accessibility<br>first</h2>
+        <p class="lede" data-anim style="--d:.08s">User research with real patients drove these calls. A WCAG checklist alone would not have gotten us here.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Watching a tired, 65+ reader struggle with the first pass pushed the type ramp up: 18px became the body floor, not 14.</li>
+          <li data-anim style="--d:0.16s">Status read by color alone got missed in testing, so every signal now pairs a word and an icon with the color, never color by itself.</li>
+          <li data-anim style="--d:0.20s">Tap targets grew and contrast started mattering more than the WCAG minimum, once research showed where real thumbs and real eyes struggled.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <img class="heroimg" data-rise src="assets/photo-phone.jpg" alt="" style="border-radius:18px"/>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-color="yellow" id="accessibility-ex">
+    <div style="width:100%;max-width:1440px;margin:0 auto">
+      <div class="eyebrow" data-anim><span class="n">02</span> User research &amp; the real type ramp <span class="bar"></span></div>
+      <div class="exgrid exg-2col">
+        <div class="excell" style="align-items:flex-start">
+          <span class="exlabel2">Testing different passes with real patients</span>
+          <img src="assets/user-testing.png" alt="Three iterations of the &quot;We're getting your Jascayd ready&quot; page, compared side by side during a user testing session"/>
+          <p class="body" style="max-width:none;margin-top:14px">Sessions with real patients compared layouts like these, side by side. The bigger type ramp, the color-plus-icon rule for status, and the larger tap targets all came from those sessions, not a spec sheet.</p>
+        </div>
+        <div class="excell" style="align-items:flex-start">
+          <span class="exlabel2">Every rung, real tokens</span>
+          <div class="mockcard" style="max-width:100%">
+            <div class="ramp">
+              <div class="ramprow"><span style="font:var(--type-display-1);letter-spacing:var(--type-display-1-tracking)">Aa</span><span class="rampmeta">--type-display-1 &middot; 88px / 700</span></div>
+              <div class="ramprow"><span style="font:var(--type-title-1);letter-spacing:var(--type-title-1-tracking)">Aa</span><span class="rampmeta">--type-title-1 &middot; 48px / 700</span></div>
+              <div class="ramprow"><span style="font:var(--type-heading);letter-spacing:var(--type-heading-tracking)">Aa</span><span class="rampmeta">--type-heading &middot; 24px / 700</span></div>
+              <div class="ramprow"><span style="font:var(--type-body-lg)">Aa</span><span class="rampmeta">--type-body-lg &middot; 20px / 400</span></div>
+              <div class="ramprow"><span style="font:var(--type-body)">Aa</span><span class="rampmeta">--type-body &middot; 18px / 400, the floor</span></div>
+              <div class="ramprow"><span style="font:var(--type-overline);letter-spacing:var(--type-overline-tracking);text-transform:uppercase">Aa</span><span class="rampmeta">--type-overline &middot; 14px / 700 caps</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.3 TOKENS -->
+  <section class="sec feat" data-color="blue" id="tokens">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">03</span> The frog token taxonomy <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">Tokens,<br>restructured</h2>
+        <p class="lede" data-anim style="--d:.08s">Brought frog&rsquo;s own taxonomy into the file: Color, Purpose, Component, Scope, Variant, State.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">A July resync restructured Semantic tokens to that taxonomy instead of ad hoc naming.</li>
+          <li data-anim style="--d:0.16s">Found 13 component pages bound to raw primitives or hardcoded hex instead of semantic tokens.</li>
+          <li data-anim style="--d:0.20s">Rebound 423 fills and strokes to the correct semantic variables, one component at a time.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="mockcard" data-rise>
+          <div class="chainrow">
+            <span class="chip2">Color</span><span class="arw">&rarr;</span>
+            <span class="chip2">Purpose</span><span class="arw">&rarr;</span>
+            <span class="chip2">Component</span>
+          </div>
+          <div class="chainrow" style="margin-top:12px">
+            <span class="chip2">Scope</span><span class="arw">&rarr;</span>
+            <span class="chip2">Variant</span><span class="arw">&rarr;</span>
+            <span class="chip2">State</span>
+          </div>
+          <div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(8,49,42,.1);font-family:var(--font-body);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-40)">For example</div>
+          <div class="chainrow" style="margin-top:12px">
+            <span class="chip2" style="background:var(--mint);color:var(--forest)">Color</span><span class="arw">&rarr;</span>
+            <span class="chip2">Action</span><span class="arw">&rarr;</span>
+            <span class="chip2">Button</span>
+          </div>
+          <div class="chainrow" style="margin-top:12px">
+            <span class="chip2">Fill</span><span class="arw">&rarr;</span>
+            <span class="chip2">Primary</span><span class="arw">&rarr;</span>
+            <span class="chip2" style="background:var(--mint);color:var(--forest)">Enabled</span>
+          </div>
+          <div style="margin-top:16px;font-family:ui-monospace,monospace;font-size:12.5px;color:var(--ink-60)">--action-button-fill-primary-enabled</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-color="blue" id="tokens-ex">
+    <div style="width:100%;max-width:1440px;margin:0 auto">
+      <div class="eyebrow" data-anim><span class="n">03</span> In practice <span class="bar"></span></div>
+      <div class="exgrid exg-2col">
+        <div class="excell"><span class="exlabel2">Semantic layer, in Figma</span>
+          <img src="assets/semantic-layer-figma.png" alt="Figma variables panel showing the Semantic/Light collection under the new taxonomy, with Primary Fill, Secondary Fill, and Action/Button/Fill/Primary rows"/>
+        </div>
+        <div class="excell" style="align-items:flex-start"><span class="exlabel2">The shape of a rebind</span>
+          <div class="mockcard" style="max-width:100%">
+            <div style="font-family:var(--font-body);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-40);margin-bottom:8px">Before: raw hex, unbound</div>
+            <div style="background:var(--forest);color:#fff;border-radius:10px;padding:12px 14px;font-family:ui-monospace,monospace;font-size:13px;margin-bottom:16px">background: <span style="color:var(--lime)">#22C55E;</span></div>
+            <div style="font-family:var(--font-body);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-40);margin-bottom:8px">After: bound to the semantic layer</div>
+            <div style="background:var(--forest);color:#fff;border-radius:10px;padding:12px 14px;font-family:ui-monospace,monospace;font-size:13px">background: <span style="color:var(--mint)">var(--communication-badge-fill-success-enabled);</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.4 BRANDS -->
+  <section class="sec feat" data-color="lilac" id="brands">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">04</span> Two brands, one system <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">Tokens carry<br>the brand</h2>
+        <p class="lede" data-anim style="--d:.08s">CareConnect4Me is the general BI brand. Jascayd is the first therapy brand, and proof the system scales without a rebuild.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">A Foundation/Brand variable collection, mode-switchable in both code and Figma.</li>
+          <li data-anim style="--d:0.16s">~29 semantic variables and all 13 component pages re-pointed through it.</li>
+          <li data-anim style="--d:0.20s">Accent-fill text auto-resolves to the safe &ldquo;on accent&rdquo; color, so contrast holds even when the brand underneath it changes.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <video class="herobox" data-rise autoplay loop muted playsinline poster="assets/multibrand-poster.jpg"><source src="assets/multibrand-bi.mp4" type="video/mp4"></video>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-color="lilac" id="brands-ex">
+    <div style="width:100%;max-width:1440px;margin:0 auto">
+      <div class="eyebrow" data-anim><span class="n">04</span> Same screen, different brand: try it <span class="bar"></span></div>
+      <div style="width:max-content;max-width:100%;margin:0 auto;display:flex;flex-direction:column;align-items:center">
+        <div class="brandswitch" role="group" aria-label="Switch brand">
+          <button type="button" class="brandbtn on" data-brand="bi">Boehringer Ingelheim</button>
+          <button type="button" class="brandbtn" data-brand="jascayd">Jascayd</button>
+        </div>
+        <div class="mockcard" style="width:max-content;max-width:100%;margin-top:20px;padding:12px">
+          <img id="brandSwitchImg" src="assets/portal-overview-bi.png" alt="The same onboarding screen, rendered in the currently selected brand" style="display:block;width:auto;max-width:100%;height:min(54vh,640px);object-fit:contain;border-radius:10px"/>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.5 DOCS -->
+  <section class="sec feat" data-color="green" id="docs">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">05</span> Documentation that teaches itself <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">24+ components,<br>six families</h2>
+        <p class="lede" data-anim style="--d:.08s">Foundations, Display, Navigation, Feedback, Actions, Cards, Forms: organized once, not one component at a time.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Every component ships a fixed quartet: Demo, Code, Anatomy, Specimen Matrix.</li>
+          <li data-anim style="--d:0.16s">Audited every documentation page and found 8 (Tabs, ProgressBar, Checkbox, Input, Switch, Select, Selector, Resource Card) still showing placeholder mockups instead of the real component.</li>
+          <li data-anim style="--d:0.20s">Swapped every one in for a live instance. Tracker is still on the list, with no real component built yet.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <img class="heroimg" data-rise src="assets/dls exampl.png" alt="Collage of real documentation pages: Brand assets, Colors, Typography, Button, Badge, and Card, each showing the Demo/Code/Anatomy structure" style="border-radius:0;box-shadow:none;background:transparent"/>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-color="green" id="docs-ex">
+    <div style="width:100%;max-width:1440px;margin:0 auto">
+      <div class="eyebrow" data-anim><span class="n">05</span> A real documentation page, simplified: Button <span class="bar"></span></div>
+      <div id="buttonDoc"><div class="placeholder" style="min-height:200px"><b>Loading live demo</b>Renders the real Button component from _ds_bundle.js. Open this file in a browser to see it. Static exports will not run the script.</div></div>
+    </div>
+  </section>
+
+  <!-- CH.6 DEAD ENDS -->
+  <section class="sec feat" data-color="orange" id="deadends">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">06</span> Three dead ends <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">What didn&rsquo;t<br>work</h2>
+        <p class="lede" data-anim style="--d:.08s">Before the pipeline that stuck, three different routes into Figma, all eventually abandoned.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">A token-push plugin Claude built, useful at first, then out of step the moment the token structure moved on.</li>
+          <li data-anim style="--d:0.16s">A second plugin built with the Figma agent, a different door onto the same wall.</li>
+          <li data-anim style="--d:0.20s">A full rebuild attempt through Figma Make, fast to a UI, but it did not keep the token bindings or the accessibility precision the file already had.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="mockcard" data-rise style="max-width:420px">
+          <div class="steplist">
+            <div class="step"><span class="sn">1</span><span class="sd">Claude-built plugin, abandoned</span></div>
+            <div class="step"><span class="sn">2</span><span class="sd">Figma-agent-built plugin, abandoned</span></div>
+            <div class="step"><span class="sn">3</span><span class="sd">Figma Make rebuild, abandoned</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-color="orange" id="deadends-ex">
+    <div style="width:100%;max-width:1440px;margin:0 auto">
+      <div class="eyebrow" data-anim><span class="n">06</span> Why each one stalled <span class="bar"></span></div>
+      <div class="attemptgrid">
+        <div class="attempt" data-rise style="--d:.04s">
+          <div class="an">Attempt 01</div>
+          <div class="at">Claude-built plugin</div>
+          <div class="ad">Pushed tokens into Figma directly. Worked for a snapshot, but had no way to stay in sync as the token structure kept evolving.</div>
+          <span class="as">Abandoned</span>
+        </div>
+        <div class="attempt" data-rise style="--d:.1s">
+          <div class="an">Attempt 02</div>
+          <div class="at">Figma-agent-built plugin</div>
+          <div class="ad">Built inside Figma itself this time, hoping native context would help. Hit the same sync problem from the other side.</div>
+          <span class="as">Abandoned</span>
+        </div>
+        <div class="attempt" data-rise style="--d:.16s">
+          <div class="an">Attempt 03</div>
+          <div class="at">Figma Make rebuild</div>
+          <div class="ad">Regenerated the UI fast, but the rebuild didn&rsquo;t preserve real token bindings or the accessibility work already done in code.</div>
+          <span class="as">Abandoned</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.7 MY WORKFLOW: OVERVIEW -->
+  <section class="sec feat" data-color="salmon" id="workflow">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">07</span> My workflow <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">One loop,<br>run on everything</h2>
+        <p class="lede" data-anim style="--d:.08s">The same high-level loop built every foundation and every component: build with Claude in VS Code, document it, push it to Figma, then refine until code and Figma agree.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Build: work with Claude, in VS Code, directly against the design system folder.</li>
+          <li data-anim style="--d:0.16s">Document and push: generate a documentation page, then send the result into Figma.</li>
+          <li data-anim style="--d:0.20s">Refine and sync: polish on both sides and keep the folder and Figma updated together, every time.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="mockcard" data-rise style="max-width:480px">
+          <div class="toolflow">
+            <div class="toolnode">
+              <span class="ticon"><img src="assets/logo-folder.png" alt="Design system folder"/></span>
+              <span class="tlabel">Design system folder</span>
+              <span class="tsub">source of truth</span>
+            </div>
+            <span class="toolarw">&rarr;</span>
+            <div class="toolnode">
+              <span class="ticon"><img src="assets/logo-claude.png" alt="Claude"/></span>
+              <span class="tlabel">Claude</span>
+              <span class="tsub">builds &amp; documents</span>
+            </div>
+            <span class="toolarw">&rarr;</span>
+            <div class="toolnode">
+              <span class="ticon"><img src="assets/logo-vscode.png" alt="VS Code"/></span>
+              <span class="tlabel">VS Code</span>
+              <span class="tsub">where it runs</span>
+            </div>
+            <span class="toolarw">&rarr;</span>
+            <div class="toolnode">
+              <span class="ticon"><img src="assets/logo-figma.svg" alt="Figma"/></span>
+              <span class="tlabel">Figma</span>
+              <span class="tsub">refined &amp; synced back</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.7 MY WORKFLOW: FOUNDATIONS -->
+  <section class="sec feat" data-color="salmon" id="workflow-foundations-ex">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">07</span> The loop, applied to foundations <span class="bar"></span></div>
+        <h2 class="ftitle-sm" data-anim style="--d:.04s">Foundations,<br>built to stay in sync</h2>
+        <p class="lede" data-anim style="--d:.08s">Every foundation started in code with Claude and was mirrored into Figma step by step. Nothing was handed off once and left to drift.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Gave Claude the real inputs first: logo variants, icon sets, accessibility constraints, and reference slides, so every foundation decision had context behind it.</li>
+          <li data-anim style="--d:0.16s">Built each foundation in VS Code with Claude Code, then generated and refined a documentation page for it there too.</li>
+          <li data-anim style="--d:0.20s">Rebuilt those documentation pages inside Figma with the html.to.figma plugin, then had Claude replicate the same foundations (styles, tokens, effects) to match.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="mockcard" data-rise>
+          <div class="steplist">
+            <div class="step"><span class="sn">1</span><span class="sd">Feed Claude the source material: logos, icons, accessibility constraints, reference slides</span></div>
+            <div class="step"><span class="sn">2</span><span class="sd">Build and refine the foundation in VS Code</span></div>
+            <div class="step"><span class="sn">3</span><span class="sd">Generate its documentation page, refined in VS Code</span></div>
+            <div class="step"><span class="sn">4</span><span class="sd">Rebuild the documentation page in Figma with html.to.figma</span></div>
+            <div class="step"><span class="sn">5</span><span class="sd">Direct Claude to replicate styles, tokens &amp; effects into Figma</span></div>
+            <div class="step"><span class="sn">6</span><span class="sd">Refine continuously, keeping folder and Figma always updated together</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.7 MY WORKFLOW: COMPONENTS -->
+  <section class="sec feat" data-color="salmon" id="workflow-components-ex">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">07</span> The loop, applied to components <span class="bar"></span></div>
+        <h2 class="ftitle-sm" data-anim style="--d:.04s">Components,<br>built the same way every time</h2>
+        <p class="lede" data-anim style="--d:.08s">One repeatable loop, run once per component, from first build in VS Code to a refined, documented instance in Figma.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Built the component in VS Code with Claude Code, then built its documentation page alongside it.</li>
+          <li data-anim style="--d:0.16s">Refined it live using VS Code&rsquo;s integrated browser, then pushed it into Figma with the <code>/build-figma-component</code> command.</li>
+          <li data-anim style="--d:0.20s">Refined the Figma build from VS Code, rebuilt its documentation page there with html.to.figma, and published it to the library, ready to drop into a real screen.</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="mockcard" data-rise>
+          <div class="steplist">
+            <div class="step"><span class="sn">1</span><span class="sd">Build the component in VS Code with Claude Code, then build its documentation page</span></div>
+            <div class="step"><span class="sn">2</span><span class="sd">Refine it live using VS Code&rsquo;s integrated browser</span></div>
+            <div class="step"><span class="sn">3</span><span class="sd">Push it to Figma with <b>/build-figma-component</b></span></div>
+            <div class="step"><span class="sn">4</span><span class="sd">Refine the Figma build, then rebuild the documentation page there with html.to.figma</span></div>
+            <div class="step"><span class="sn">5</span><span class="sd">Publish the library</span></div>
+            <div class="step"><span class="sn">6</span><span class="sd">Build a real screen, then refine or add variants, keeping folder and Figma always in sync</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.7 MY WORKFLOW: THE BLOCKER -->
+  <section class="sec feat" data-color="salmon" id="workflow-blocker-ex">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">07</span> The blocker <span class="bar"></span></div>
+        <h2 class="ftitle-sm" data-anim style="--d:.04s">Getting VS Code<br>talking to Figma</h2>
+        <p class="lede" data-anim style="--d:.08s">None of this works until VS Code can actually reach into Figma. Getting that connection set up in the terminal, so Claude could create and edit inside the Figma file and not just read it, was the first real blocker.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Read-only access is the default; writing to Figma from VS Code needs its own setup step, done once per machine.</li>
+          <li data-anim style="--d:0.16s">The failure mode is quiet: commands run without errors, but nothing changes in the Figma file.</li>
+          <li data-anim style="--d:0.20s">We wrote the fix up once, as a guide, so no one has to rediscover it.</li>
+        </ul>
+        <a class="dlbtn" data-anim style="--d:.24s" href="downloads/figma-mcp-access-guide-frog.pdf" download><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4.5 17v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/></svg></span> Download the setup guide (.pdf)</a>
+      </div>
+      <div class="stage">
+        <div class="mockcard" data-rise>
+          <div class="steplist">
+            <div class="step"><span class="sn">!</span><span class="sd"><b>Symptom:</b> Claude, in VS Code, can read the Figma file but can&rsquo;t create or edit anything in it.</span></div>
+            <div class="step"><span class="sn">?</span><span class="sd"><b>Cause:</b> terminal-level access to Figma isn&rsquo;t granted by default. It&rsquo;s a one-time setup step, easy to miss.</span></div>
+            <div class="step"><span class="sn">&#10003;</span><span class="sd"><b>Fix:</b> the step-by-step guide below, written from the setup that unblocked it here.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CH.8 STARTER KIT -->
+  <section class="sec feat" data-color="lilac" id="pipeline">
+    <div class="wrap">
+      <div class="copy">
+        <div class="eyebrow" data-anim><span class="n">08</span> Turning it into a kit <span class="bar"></span></div>
+        <h2 class="ftitle" data-anim style="--d:.04s">The Design<br>System Starter Kit</h2>
+        <p class="lede" data-anim style="--d:.08s">Everything that actually worked here, generalized so any frog team can run it on the next project.</p>
+        <ul class="pts">
+          <li data-anim style="--d:0.12s">Three guides, in build order: kickoff &amp; discovery, foundations &amp; tokens, Figma translation.</li>
+          <li data-anim style="--d:0.16s">Includes the working <code>/build-figma-component</code> command, ready to drop into any repo.</li>
+          <li data-anim style="--d:0.20s">Client and audience specifics stripped out. The process, the ordering, and the gotchas are what carry over.</li>
+        </ul>
+        <a class="dlbtn" data-anim style="--d:.24s" href="downloads/frog-design-system-starter-kit.zip" download><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4.5 17v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/></svg></span> Download the kit (.zip)</a>
+      </div>
+      <div class="stage">
+        <div class="mockcard" data-rise>
+          <div class="steplist">
+            <div class="step"><span class="sn">1</span><span class="sd"><b>README.md</b>: what's inside, and the order to use it in</span></div>
+            <div class="step"><span class="sn">2</span><span class="sd"><b>01-kickoff-and-discovery.md</b>: the intake prompt</span></div>
+            <div class="step"><span class="sn">3</span><span class="sd"><b>02-foundations-and-tokens.md</b>: the system spec</span></div>
+            <div class="step"><span class="sn">4</span><span class="sd"><b>03-figma-translation.md</b>: the Figma guide + command</span></div>
+            <div class="step"><span class="sn">5</span><span class="sd"><b>.claude/commands/build-figma-component.md</b>: ready to copy in</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" data-color="lilac" id="pipeline-ex">
+    <div style="width:100%;max-width:1440px;margin:0 auto">
+      <div class="eyebrow" data-anim><span class="n">08</span> What's in it, briefly <span class="bar"></span></div>
+      <div class="exgrid exg-3col">
+        <div class="excell" style="align-items:flex-start">
+          <span class="exlabel2">1. Kickoff &amp; discovery</span>
+          <div class="mockcard" style="max-width:100%">
+            <p class="body" style="max-width:none">Claude reads whatever&rsquo;s already in the folder, then runs a real discovery conversation (client, brand, audience age and context, regulated-data flags, multi-brand likelihood) before writing a plan.</p>
+          </div>
+        </div>
+        <div class="excell" style="align-items:flex-start">
+          <span class="exlabel2">2. Foundations &amp; tokens</span>
+          <div class="mockcard" style="max-width:100%">
+            <p class="body" style="max-width:none">The token taxonomy, how to calibrate a type ramp to a real audience instead of a default, foundation build order, six-family component organization, and the Demo/Code/Anatomy/Specimen Matrix documentation structure.</p>
+          </div>
+        </div>
+        <div class="excell" style="align-items:flex-start">
+          <span class="exlabel2">3. Figma translation</span>
+          <div class="mockcard" style="max-width:100%">
+            <p class="body" style="max-width:none">What to set up first, the three dead ends to skip, and <code>/build-figma-component</code> itself, plus a prompt that writes a customized version if you'd rather not edit placeholders.</p>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:34px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <a class="dlbtn" data-anim href="downloads/frog-design-system-starter-kit.zip" download><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4.5 17v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/></svg></span> Download the kit (.zip)</a>
+        <span class="dlsub" data-anim>3 guides &middot; 1 ready-to-use command &middot; ~18KB</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROMPTS -->
+  <section class="sec" data-color="lilac" id="prompts">
+    <div style="width:100%;max-width:1300px;margin:0 auto;display:grid;grid-template-columns:1fr 1.2fr;gap:48px;align-items:center">
+      <div>
+        <div class="eyebrow" data-anim>Working with Claude <span class="bar"></span></div>
+        <h2 class="disp" data-anim style="--d:.05s;font-size:clamp(32px,4.4vw,62px)">The prompts behind the build</h2>
+      </div>
+      <div class="promptcard" data-rise style="--d:.1s">
+        <div class="pblock"><div class="phand">&ldquo;Rebuild the semantic tokens&hellip;&rdquo;</div><div class="pdesc">using frog&rsquo;s own taxonomy: Color, Purpose, Component, Scope, Variant, State</div></div>
+        <div class="pblock"><div class="phand">&ldquo;using the real names&hellip;&rdquo;</div><div class="pdesc">from our internal system, not a generic naming scheme, then flag anything still bound to a raw primitive</div></div>
+        <div class="pblock"><div class="phand">&ldquo;and verify every page&hellip;&rdquo;</div><div class="pdesc">still resolves after the change, then report exactly what&rsquo;s still broken</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section class="sec" data-color="green" id="takeaways">
+    <div class="takewrap">
+      <div class="eyebrow" data-anim>So what for us <span class="bar"></span></div>
+      <h2 class="disp" data-anim style="--d:.05s;font-size:clamp(36px,5vw,74px)">Takeaways</h2>
+      <div class="takegrid">
+        <div class="take" data-rise style="--d:.05s"><div class="th">AI accelerates the system, not the judgment</div><div class="td">Claude moved fast on tokens, structure, and repetitive builds. Every accessibility call, brand decision, and &ldquo;is this actually right&rdquo; moment still needed a human.</div></div>
+        <div class="take" data-rise style="--d:.13s"><div class="th">Tokens are the leverage point</div><div class="td">The frog taxonomy resync and the multi-brand collection are why two brands, six families, and 24+ components didn&rsquo;t mean 24+ rebuilds.</div></div>
+        <div class="take" data-rise style="--d:.21s"><div class="th">Figma and code stay in sync only if you make them</div><div class="td">The pipeline that worked verifies itself against the documentation page. The ones that didn&rsquo;t drifted the moment either side changed.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THANKS -->
+  <section class="sec" data-color="blue" id="thanks">
+    <div style="width:100%;max-width:1300px;margin:0 auto">
+      <h2 class="tk" data-anim>Thanks</h2>
+      <div class="links" data-anim style="--d:.1s">
+        BI Patient Portal design system &middot; built with Claude Code &amp; VS Code<br/>
+        Happy to walk through any chapter in more depth. Just ask.
+      </div>
+      <div class="lockup" data-anim style="--d:.18s;margin-top:34px">BOEHRINGER INGELHEIM <span class="x">&#10005;</span> CLAUDE CODE</div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Real component demos: the actual _ds_bundle.js from the project, rendering the
+     real Badge/ProgressBar components — not recreations. Requires internet
+     access once (React/ReactDOM/Babel from a CDN, same as every doc page in the
+     design system itself); everything else in this file is fully offline. -->
+<script defer src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script defer src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script defer src="assets/ds/_ds_bundle.js"></script>
+<script defer type="text/babel">
+(function(){
+  const DS = window.BoehringerIngelheimPatientPortalDesignSystem_6375ea;
+  if (!DS) return;
+  const { Button, Icon } = DS;
+
+  // Ch.5 — a simplified real doc page for Button: every tab mirrors a section of
+  // the actual component doc pages in the design system (Demo/Code/Anatomy/
+  // Specimen Matrix), plus Properties and Tokens pulled straight from Button.jsx.
+  const PROPS = [
+    ["variant", "string", '"primary"', "primary · secondary · tertiary · inversePrimary · inverse (+ legacy aliases like outline, ghost)"],
+    ["size", "string", '"md"', "xs · sm · md · lg, heights 44/48/52/60px, never below the 44px floor"],
+    ["iconLeft", "node", "null", "Optional icon element rendered before the label"],
+    ["iconRight", "node", "null", "Optional icon element rendered after the label"],
+    ["fullWidth", "bool", "false", "Stretches the button to 100% of its container"],
+    ["disabled", "bool", "false", "Disables interaction; dims tertiary/inverse, greys fill on primary/secondary"],
+    ["type", "string", '"button"', "Native button type: button · submit · reset"],
+    ["onClick", "function", "n/a", "Click handler, passed straight through to the native button"],
+  ];
+
+  const TOKENS = [
+    "--action-button-fill-<variant>-<enabled|hover|pressed|disabled>",
+    "--action-button-text-<variant>-<enabled|disabled>",
+    "--action-button-border-<variant>-<enabled|disabled>",
+    "--action-focus-ring",
+    "--action-focus-ring-inverse",
+    "--radius-pill",
+    "--type-label / --type-label-sm / --type-label-lg",
+  ];
+
+  function DemoPanel(){
+    return (
+      <div>
+        <div className="btndoc-section">
+          <div className="btndoc-sectitle">Light surfaces</div>
+          <div className="btndoc-swatch">
+            <span className="swlabel">Click, hover, or tab to any of these: they're the real component</span>
+            <div className="btndoc-row">
+              <Button variant="primary">Book appointment</Button>
+              <Button variant="secondary">Reschedule</Button>
+              <Button variant="tertiary">Cancel</Button>
+              <Button variant="primary" disabled>Disabled</Button>
+            </div>
+          </div>
+        </div>
+        <div className="btndoc-section">
+          <div className="btndoc-sectitle">Dark-green surfaces, the Inverse family</div>
+          <div className="btndoc-swatch dark">
+            <span className="swlabel">inversePrimary is the only place Accent Green fills a button</span>
+            <div className="btndoc-row">
+              <Button variant="inversePrimary">Confirm choice</Button>
+              <Button variant="inverse">Learn more</Button>
+            </div>
+          </div>
+        </div>
+        <div className="btndoc-section">
+          <div className="btndoc-sectitle">Sizes: xs, sm, md, lg</div>
+          <div className="btndoc-row">
+            <Button variant="primary" size="xs">Extra small</Button>
+            <Button variant="primary" size="sm">Small</Button>
+            <Button variant="primary" size="md">Medium</Button>
+            <Button variant="primary" size="lg">Large</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function CodePanel(){
+    return (
+      <div className="btndoc-code">{`import { Button } from './components/actions/Button';
+
+<Button variant="primary" onClick={handleSchedule}>
+  Book appointment
+</Button>
+
+<Button variant="secondary" iconLeft={<Icon name="calendar" />}>
+  Reschedule
+</Button>
+
+<Button variant="inversePrimary" size="lg" fullWidth>
+  Confirm choice
+</Button>`}</div>
+    );
+  }
+
+  function AnatomyPanel(){
+    // Same stage + numbered-marker + legend treatment as the real Button.card.html
+    // doc page in the design system — just restyled to this deck's fonts/colors.
+    const rows = [
+      ["1", "Container", "Pill fill + 1.5px border. Radius --radius-pill, height per size, auto-layout horizontal."],
+      ["2", "Label", "Type role --type-label. Hugs contents; never wraps."],
+      ["3", "Leading icon slot", "Optional. Instance-swap, sized to match label."],
+      ["4", "Trailing icon slot", "Optional. Use for direction/disclosure only."],
+      ["5", "Focus ring", "2px --action-focus-ring, 2px offset. Keyboard focus only."],
+    ];
+    return (
+      <div className="btndoc-anatomy-grid">
+        <div className="btndoc-anatomy-stage">
+          <span className="btndoc-anatomy-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Book appointment
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <span className="btndoc-marker" style={{top:-11,left:-11}}>1</span>
+            <span className="btndoc-marker" style={{top:-11,left:34}}>3</span>
+            <span className="btndoc-marker" style={{top:-11,left:'50%',transform:'translateX(-50%)'}}>2</span>
+            <span className="btndoc-marker" style={{top:-11,right:34}}>4</span>
+            <span className="btndoc-marker" style={{bottom:-11,right:-11}}>5</span>
+          </span>
+        </div>
+        <ul className="btndoc-legend">
+          {rows.map(r => (
+            <li key={r[0]}>
+              <span className="num">{r[0]}</span>
+              <div>
+                <div className="pt-name">{r[1]}</div>
+                <div className="pt-spec">{r[2]}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  function PropertiesPanel(){
+    return (
+      <table className="btndoc-proptable">
+        <thead><tr><th>Prop</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          {PROPS.map(p => (
+            <tr key={p[0]}><td>{p[0]}</td><td>{p[1]}</td><td>{p[2]}</td><td>{p[3]}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
+  // Mirrors Button.jsx's own fb() fallback: not every variant declares every
+  // state token (e.g. inverse has no disabled fill/text/border), so the real
+  // component falls back to that variant's enabled token and dims via opacity
+  // instead. These rows reproduce that exactly, token-for-token.
+  function tok(variant, scope, state){ return `var(--action-button-${scope}-${variant}-${state})`; }
+
+  // Same grid as the real Button.card.html specimen matrix: rows = states,
+  // columns = icon configuration. One variant's table shown at a time; the
+  // switcher below lets you page through the other 4 instead of stacking them.
+  const SPEC_STATES = ["enabled", "hover", "pressed", "focused", "disabled"];
+  const SPEC_COLS = [
+    { key: "label", head: "Label" },
+    { key: "leading", head: "Leading + label" },
+    { key: "trailing", head: "Label + trailing" },
+  ];
+  const ICON_PATHS = {
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    arrowRight: '<path d="M5 12h14M12 5l7 7-7 7"/>',
+  };
+  function specIcon(name){ return { __html: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>` }; }
+
+  function cellStyle(variant, state, { hasHoverBorder, hasDisabled, tertiaryBorder } = {}){
+    const enabledText = tok(variant, "text", "enabled");
+    const enabledBorder = tertiaryBorder ? "transparent" : tok(variant, "border", "enabled");
+    const ring = (variant === "inversePrimary" || variant === "inverse") ? "var(--action-focus-ring-inverse)" : "var(--action-focus-ring)";
+    if (state === "enabled" || state === "focused") {
+      return { background: tok(variant,"fill","enabled"), color: enabledText, borderColor: enabledBorder, transform: "none", outline: state === "focused" ? `2px solid ${ring}` : "none", opacity: 1 };
+    }
+    if (state === "hover") {
+      return { background: tok(variant,"fill","hover"), color: enabledText, borderColor: hasHoverBorder ? tok(variant,"border","hover") : enabledBorder, transform: "none", outline: "none", opacity: 1 };
+    }
+    if (state === "pressed") {
+      return { background: tok(variant,"fill","pressed"), color: enabledText, borderColor: enabledBorder, transform: "scale(0.97)", outline: "none", opacity: 1 };
+    }
+    // disabled
+    if (!hasDisabled) return { background: tok(variant,"fill","enabled"), color: enabledText, borderColor: enabledBorder, transform: "none", outline: "none", opacity: 0.45 };
+    return { background: tok(variant,"fill","disabled"), color: tok(variant,"text","disabled"), borderColor: tertiaryBorder ? "transparent" : tok(variant,"border","disabled"), transform: "none", outline: "none", opacity: 1 };
+  }
+
+  const VARIANT_CONFIG = [
+    { key: "primary", label: "Primary", fig: "Variant=Primary · dark green solid", dark: false, opts: { hasDisabled: true } },
+    { key: "secondary", label: "Secondary", fig: "Variant=Secondary · dark green outline", dark: false, opts: { hasDisabled: true } },
+    { key: "tertiary", label: "Tertiary", fig: "Variant=Tertiary · text only", dark: false, opts: { hasDisabled: true, tertiaryBorder: true } },
+    { key: "inversePrimary", label: "Inverse · Primary", fig: "Variant=Inverse Primary · accent on dark", dark: true, opts: { hasDisabled: true } },
+    { key: "inverse", label: "Inverse · Secondary", fig: "Variant=Inverse Secondary · outline on dark", dark: true, opts: { hasHoverBorder: true, hasDisabled: false } },
+  ];
+
+  function SpecimenPanel(){
+    const [idx, setIdx] = React.useState(0);
+    const v = VARIANT_CONFIG[idx];
+    const step = (d) => setIdx((idx + d + VARIANT_CONFIG.length) % VARIANT_CONFIG.length);
+    return (
+      <div>
+        <div className="btndoc-sectitle">One variant&rsquo;s full matrix at a time: state (rows) &times; icon config (columns), real tokens throughout</div>
+        <div className="btndoc-vswitch">
+          <span className="btndoc-vnav" onClick={() => step(-1)}>&larr;</span>
+          <div className="btndoc-vtabs">
+            {VARIANT_CONFIG.map((vc, i) => (
+              <span key={vc.key} className={i === idx ? "on" : ""} onClick={() => setIdx(i)}>{vc.label}</span>
+            ))}
+          </div>
+          <span className="btndoc-vnav" onClick={() => step(1)}>&rarr;</span>
+        </div>
+        <div className="btndoc-variant-head"><h3>{v.label}</h3><span className="fig">{v.fig}</span></div>
+        <div className={"btndoc-matrix" + (v.dark ? " dark" : "")}>
+          <div className="mcell corner"></div>
+          {SPEC_COLS.map(c => <div className="mcell colhead" key={c.key}>{c.head}</div>)}
+          {SPEC_STATES.map(state => (
+            <React.Fragment key={state}>
+              <div className="mcell rowhead">{state}</div>
+              {SPEC_COLS.map(c => {
+                const s = cellStyle(v.key, state, v.opts);
+                return (
+                  <div className="mcell" key={c.key}>
+                    <span className="btndoc-specimen-btn" style={{ background: s.background, color: s.color, borderColor: s.borderColor, transform: s.transform, outline: s.outline, outlineOffset: 2, opacity: s.opacity }}>
+                      {c.key === "leading" && <span dangerouslySetInnerHTML={specIcon("plus")}/>}
+                      <span>Button</span>
+                      {c.key === "trailing" && <span dangerouslySetInnerHTML={specIcon("arrowRight")}/>}
+                    </span>
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function TokensPanel(){
+    return (
+      <div className="btndoc-tokenlist">
+        {TOKENS.map(t => <code key={t}>{t}</code>)}
+      </div>
+    );
+  }
+
+  const TABS = [
+    ["demo", "Demo", DemoPanel],
+    ["code", "Code", CodePanel],
+    ["anatomy", "Anatomy", AnatomyPanel],
+    ["properties", "Properties", PropertiesPanel],
+    ["specimen", "Specimen", SpecimenPanel],
+    ["tokens", "Tokens", TokensPanel],
+  ];
+
+  function ButtonDoc(){
+    const [tab, setTab] = React.useState('demo');
+    const Panel = (TABS.find(t => t[0] === tab) || TABS[0])[2];
+    return (
+      <div className="btndoc">
+        <div className="btndoc-tabs">
+          {TABS.map(t => (
+            <span key={t[0]} className={tab === t[0] ? 'on' : ''} onClick={() => setTab(t[0])}>{t[1]}</span>
+          ))}
+        </div>
+        <div className="btndoc-body"><Panel/></div>
+      </div>
+    );
+  }
+
+  function mount(id, Comp){
+    const el = document.getElementById(id);
+    if (!el) return;
+    try { ReactDOM.createRoot(el).render(<Comp/>); }
+    catch(e){ el.innerHTML = '<div class="placeholder"><b>Demo failed to load</b>' + String(e && e.message || e) + '</div>'; }
+  }
+  mount('buttonDoc', ButtonDoc);
+})();
+</script>
+
+<script>
+const scroll=document.getElementById('scroll');
+const secs=[...document.querySelectorAll('.sec')];
+const rail=document.getElementById('rail');
+const prog=document.getElementById('prog');
+const cur=document.getElementById('cur');
+let idx=0;
+
+const isEx=s=>s.id.endsWith('-ex');
+// One dot per chapter only — not the cover/thesis/index intro or the prompts/
+// takeaways/thanks outro. Chapter sections are the ones with a numbered eyebrow
+// (<span class="n">01</span> ...); their "-ex" companion slides share the dot.
+// Labels are read straight off the "How it got built" index rows — same number,
+// same name, always in sync with that list instead of a second hardcoded copy.
+const CHAPTER_NAMES={index:'00 How it got built'};
+document.querySelectorAll('#index .idxrow[data-jump]').forEach(r=>{
+  const ix=r.querySelector('.ix'), nm=r.querySelector('.nm');
+  if(ix && nm) CHAPTER_NAMES[r.dataset.jump]=`${ix.textContent} ${nm.textContent}`;
+});
+const dotSecs=secs.filter(s=>!isEx(s) && s.querySelector('.eyebrow .n'));
+const groupIndex=secs.map((s,n)=>{
+  const i=dotSecs.indexOf(s);
+  if(i!==-1) return i;
+  for(let k=n-1;k>=0;k--){ const j=dotSecs.indexOf(secs[k]); if(j!==-1) return j; }
+  return 0;
+});
+dotSecs.forEach((s)=>{
+  const dot=document.createElement('i');
+  dot.dataset.label=CHAPTER_NAMES[s.id]||s.id;
+  dot.addEventListener('click',()=>s.scrollIntoView());
+  rail.appendChild(dot);
+});
+const dots=[...rail.children];
+const indexPos=secs.findIndex(s=>s.id==='index');
+
+const fab=document.getElementById('fab');
+const fabIcon=document.getElementById('fabIcon');
+const fabLabel=document.getElementById('fabLabel');
+fab.classList.add('show');
+fab.addEventListener('click',()=>{
+  if(fab.classList.contains('top')) secs[0].scrollIntoView();
+  else if(idx<secs.length-1) secs[idx+1].scrollIntoView();
+  else secs[0].scrollIntoView();
+});
+
+const io=new IntersectionObserver((es)=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+      idx=secs.indexOf(e.target);
+      dots.forEach((d,n)=>d.classList.toggle('on',n===groupIndex[idx]));
+      rail.classList.toggle('show',idx>=indexPos);
+      cur.textContent=String(idx+1).padStart(2,'0');
+      const last=idx===secs.length-1;
+      const first=idx===0;
+      fab.classList.toggle('show',first||last);
+      fab.classList.toggle('top',last);
+      fabIcon.innerHTML=last?'&#8593;':'&#8595;';
+      fabLabel.textContent=last?'Back to top':'Scroll';
+      fab.setAttribute('aria-label',last?'Back to top':'Scroll down');
+    }
+  });
+},{threshold:.55});
+secs.forEach(s=>io.observe(s));
+
+scroll.addEventListener('scroll',()=>{
+  const max=scroll.scrollHeight-scroll.clientHeight;
+  prog.style.width=(scroll.scrollTop/max*100)+'%';
+},{passive:true});
+
+document.querySelectorAll('[data-jump]').forEach(r=>{
+  r.addEventListener('click',()=>document.getElementById(r.dataset.jump).scrollIntoView());
+});
+
+// Ch.1 reference carousel — gentle auto-scroll at rest; mouse drag or touch/trackpad
+// swipe scrolls it manually. Content is duplicated once in the markup so the auto-scroll
+// can wrap seamlessly at the halfway point.
+(function(){
+  const track = document.querySelector('#foundation-ex .reftrack');
+  if(!track) return;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let dragging = false, dragged = false, startX = 0, startScroll = 0;
+
+  track.addEventListener('pointerdown', e=>{
+    if(e.pointerType !== 'mouse') return; // let touch/trackpad use native scrolling
+    dragging = true; dragged = false;
+    startX = e.clientX; startScroll = track.scrollLeft;
+    track.classList.add('dragging');
+    track.setPointerCapture(e.pointerId);
+  });
+  track.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const dx = e.clientX - startX;
+    if(Math.abs(dx) > 4) dragged = true;
+    track.scrollLeft = startScroll - dx;
+  });
+  const endDrag = ()=>{ dragging = false; track.classList.remove('dragging'); };
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+  track.addEventListener('click', e=>{ if(dragged){ e.preventDefault(); e.stopPropagation(); } }, true);
+
+  if(!reduceMotion){
+    (function tick(){
+      if(!dragging){
+        const half = track.scrollWidth / 2;
+        track.scrollLeft += 0.4;
+        if(track.scrollLeft >= half) track.scrollLeft -= half;
+      }
+      requestAnimationFrame(tick);
+    })();
+  }
+})();
+
+// brand switcher (Ch.3, tokens-ex) — plain JS, no CDN dependency
+const brandImg = document.getElementById('brandSwitchImg');
+const brandSrc = { bi: 'assets/portal-overview-bi.png', jascayd: 'assets/portal-overview-jascayd.png' };
+document.querySelectorAll('.brandbtn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.brandbtn').forEach(b=>b.classList.toggle('on', b===btn));
+    if (brandImg) brandImg.src = brandSrc[btn.dataset.brand] || brandSrc.bi;
+  });
+});
+
+addEventListener('keydown',e=>{
+  if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();if(idx<secs.length-1)secs[idx+1].scrollIntoView();}
+  else if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();if(idx>0)secs[idx-1].scrollIntoView();}
+  else if(e.key==='Home'){secs[0].scrollIntoView();}
+  else if(e.key==='End'){secs[secs.length-1].scrollIntoView();}
+  else if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}
+});
+secs[0].classList.add('in');
+</script>
+</body>
+</html>

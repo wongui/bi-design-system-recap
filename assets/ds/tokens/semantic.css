@@ -1,0 +1,251 @@
+/* ============================================================
+   SEMANTIC COMPONENT TOKENS
+   frog "Foundations → Global Semantics" taxonomy (TOKEN_STRUCTURE.md)
+
+   Figma path:
+     Collection / Mode / Category / Purpose / Component / Scope / Variant / State
+   Example:
+     Semantic/Light/Color/Action/Button/Fill/Primary/Enabled
+
+   CSS flattens that path to a custom property, dropping the
+   Collection+Mode+Category prefix (this :root IS Semantic/Light/Color):
+     --action-button-fill-primary-enabled
+
+   Rules honored:
+   · Color tokens carry BOTH Variant and State (mandatory).
+   · Every token is scoped to a Purpose + Component (no global overrides here).
+   · Proportion is an 8px-based scale multiplier.
+   · Typography is split Headline / Label / Body.
+
+   These reference the raw palette + base aliases in colors.css.
+   A second Mode (e.g. Dark) would be a sibling collection — add it as
+   a [data-mode="dark"] scope re-declaring the same token names.
+   ============================================================ */
+:root {
+
+  /* ==========================================================
+     PROPORTION — base unit 8px, scale multiplier
+     (Category: Size · taxonomy keys _25 … 8)
+     ========================================================== */
+  --prop-_25: 2px;   /* 0.25 */
+  --prop-_50: 4px;   /* 0.50 */
+  --prop-_75: 6px;   /* 0.75 */
+  --prop-1:   8px;   /* 1.00 — default unit */
+  --prop-1_25: 10px;
+  --prop-1_50: 12px;
+  --prop-1_75: 14px;
+  --prop-2:   16px;
+  --prop-2_5: 20px;
+  --prop-3:   24px;
+  --prop-4:   32px;
+  --prop-5:   40px;
+  --prop-6:   48px;
+  --prop-8:   64px;
+  --prop-10:  80px;
+
+  /* ==========================================================
+     COLOR · Purpose: ACTION · Component: Button
+     Scope × Variant × State
+     ========================================================== */
+
+  /* — Primary (brand-primary solid — the CTA on light surfaces).
+     Resolves through --brand-primary in colors.css: BI mode = Dark
+     Green solid, Jascayd mode = the accessible purple. — */
+  --action-button-fill-primary-enabled:   var(--brand-primary);
+  --action-button-fill-primary-hover:     var(--brand-primary-hover);
+  --action-button-fill-primary-pressed:   var(--brand-primary-press);
+  --action-button-fill-primary-disabled:  var(--bi-neutral-200);
+  --action-button-text-primary-enabled:   var(--brand-on-primary);
+  --action-button-text-primary-disabled:  var(--bi-neutral-400);
+  --action-button-border-primary-enabled: var(--brand-primary-border);
+  --action-button-border-primary-disabled:var(--bi-neutral-200);
+
+  /* — Secondary (Dark Green outline) — */
+  --action-button-fill-secondary-enabled:  transparent;
+  --action-button-fill-secondary-hover:    var(--bi-neutral-100);
+  --action-button-fill-secondary-pressed:  var(--bi-neutral-200);
+  --action-button-fill-secondary-disabled: transparent;
+  --action-button-text-secondary-enabled:  var(--brand-primary);
+  --action-button-text-secondary-disabled: var(--bi-neutral-400);
+  --action-button-border-secondary-enabled:var(--brand-primary);
+  --action-button-border-secondary-disabled:var(--bi-neutral-200);
+
+  /* — Tertiary (text only — borderless low-emphasis action; absorbs former Ghost.
+     `variant="ghost"` is kept as an alias of Tertiary for back-compat.
+     Button renders Tertiary text-only (ignores the border tokens below);
+     the border + ghost tokens are retained because IconButton and ResourceCard
+     reuse them for their own neutral-outline / borderless treatments. — */
+  --action-button-fill-tertiary-enabled:   transparent;
+  --action-button-fill-tertiary-hover:     var(--bi-neutral-100);
+  --action-button-fill-tertiary-pressed:   var(--bi-neutral-200);
+  --action-button-fill-tertiary-disabled:  transparent;
+  --action-button-text-tertiary-enabled:   var(--brand-primary);
+  --action-button-text-tertiary-disabled:  var(--bi-neutral-400);
+  --action-button-border-tertiary-enabled: var(--bi-neutral-400);
+  --action-button-border-tertiary-disabled:var(--bi-neutral-200);
+
+  /* — Ghost (shared token retained for IconButton; Button's `ghost` = Tertiary) — */
+  --action-button-fill-ghost-enabled:   transparent;
+  --action-button-fill-ghost-hover:     var(--bi-neutral-100);
+  --action-button-fill-ghost-pressed:   var(--bi-neutral-200);
+  --action-button-fill-ghost-disabled:  transparent;
+  --action-button-text-ghost-enabled:   var(--brand-primary);
+  --action-button-text-ghost-disabled:  var(--bi-neutral-400);
+
+  /* ─── Inverse family · for dark-green / dark surfaces (the "dark mode" pair) ─── */
+
+  /* — Inverse · Primary (brand-accent solid — the CTA on dark surfaces).
+     Resolves through --brand-accent in colors.css: BI mode = Accent
+     Green (fails AA on light, use ONLY on --surface-inverse/brand),
+     Jascayd mode = the same accessible purple as its Primary (Jascayd
+     uses one brand color everywhere — it clears contrast in both
+     contexts, so it doesn't need BI's two-color split). — */
+  --action-button-fill-inversePrimary-enabled:   var(--brand-accent);
+  --action-button-fill-inversePrimary-hover:     var(--brand-accent-hover);
+  --action-button-fill-inversePrimary-pressed:   var(--brand-accent-press);
+  --action-button-fill-inversePrimary-disabled:  rgba(255,255,255,0.16);
+  --action-button-text-inversePrimary-enabled:   var(--brand-on-accent);
+  --action-button-text-inversePrimary-disabled:  rgba(255,255,255,0.50);
+  --action-button-border-inversePrimary-enabled: var(--brand-accent);
+  --action-button-border-inversePrimary-disabled:rgba(255,255,255,0.16);
+
+  /* — Inverse · Secondary (white outline on dark). `variant="inverse"` and
+     `variant="inverseSecondary"` both resolve here. — */
+  --action-button-fill-inverse-enabled:   transparent;
+  --action-button-fill-inverse-hover:      rgba(255,255,255,0.14);
+  --action-button-fill-inverse-pressed:    rgba(255,255,255,0.22);
+  --action-button-text-inverse-enabled:    var(--bi-white);
+  --action-button-border-inverse-enabled:  rgba(255,255,255,0.32);
+  --action-button-border-inverse-hover:    rgba(255,255,255,0.50);
+
+  /* Focus ring (State: Focused) — brand greens, not the old off-brand teal.
+     Dark Green clears 3:1 against light surfaces; Accent Green clears it on dark.
+     Button picks the inverse ring for the Inverse family. */
+  --action-focus-ring:         var(--brand-focus-ring);
+  --action-focus-ring-inverse: var(--brand-focus-ring-inverse);
+
+  /* ==========================================================
+     COLOR · Purpose: SELECTION · Component: Checkbox
+     Selected = DARK GREEN (brand), not bright Accent Green.
+     Accent Green fails AA on the light page; Dark Green clears it.
+     The checkmark is WHITE so it stays legible on the dark fill
+     (~15:1) — it was Dark Green when the fill was bright, which
+     would now be invisible.
+     ========================================================== */
+  --selection-checkbox-fill-default-enabled:   var(--surface-card);
+  --selection-checkbox-fill-default-disabled:  var(--bi-neutral-100);
+  --selection-checkbox-fill-selected-enabled:  var(--brand-selected);
+  --selection-checkbox-border-default-enabled: var(--bi-neutral-400);
+  --selection-checkbox-border-selected-enabled:var(--brand-selected);
+  --selection-checkbox-icon-selected-enabled:  var(--bi-white);
+
+  /* ==========================================================
+     COLOR · Purpose: SELECTION · Component: Switch
+     On = DARK GREEN track (brand, accessible), white knob.
+     ========================================================== */
+  --selection-switch-fill-default-enabled:  var(--bi-neutral-300);
+  --selection-switch-fill-selected-enabled: var(--brand-selected);
+  --selection-switch-fill-default-disabled: var(--bi-neutral-200);
+  --selection-switch-knob-default-enabled:  var(--bi-white);
+
+  /* ==========================================================
+     COLOR · Purpose: TEXT INPUT · Component: Input / Select
+     ========================================================== */
+  --textinput-input-fill-default-enabled:   var(--surface-card);
+  --textinput-input-fill-default-disabled:  var(--bi-neutral-100);
+  --textinput-input-border-default-enabled: var(--border-default);
+  --textinput-input-border-default-focused: var(--brand-focus-ring);
+  --textinput-input-border-error-enabled:   var(--bi-red-medium);
+  --textinput-input-text-default-enabled:   var(--text-body);
+  --textinput-input-text-default-placeholder: var(--text-subtle);
+  --textinput-input-text-filled-enabled:    var(--text-strong);
+  --textinput-input-text-error-enabled:     var(--bi-red-dark);
+
+  /* ==========================================================
+     COLOR · Purpose: NAVIGATION · Component: Tabs
+     ========================================================== */
+  --navigation-tabs-text-default-enabled:    var(--text-muted);
+  --navigation-tabs-text-default-hover:      var(--text-strong);
+  --navigation-tabs-text-default-selected:   var(--text-strong);
+  --navigation-tabs-indicator-default-selected: var(--brand-selected);
+
+  /* ==========================================================
+     COLOR · Purpose: NAVIGATION · Component: BottomNav
+     Mobile bottom tab bar. Selected = bold weight + Dark Green,
+     matching Tabs — state is never color-alone (see Tabs note above).
+     ========================================================== */
+  --navigation-bottomnav-fill-default-enabled:   var(--surface-card);
+  --navigation-bottomnav-border-default-enabled: var(--border-subtle);
+  --navigation-bottomnav-icon-default-enabled:   var(--text-muted);
+  --navigation-bottomnav-icon-default-selected:  var(--brand-selected);
+  --navigation-bottomnav-text-default-enabled:   var(--text-muted);
+  --navigation-bottomnav-text-default-selected:  var(--brand-selected);
+
+  /* ==========================================================
+     COLOR · Purpose: CONTAINMENT · Component: Card
+     ========================================================== */
+  --containment-card-fill-default-enabled:   var(--surface-card);
+  --containment-card-border-default-enabled: var(--border-subtle);
+
+  /* ==========================================================
+     COLOR · Purpose: OVERLAY · Component: Modal
+     Scrim resolves through --brand-scrim (colors.css) — BI's darkest
+     green tint by default, Jascayd's Deep Purple under [data-brand=
+     "jascayd"] — rather than an off-brand neutral black.
+     ========================================================== */
+  --overlay-scrim-fill:                        var(--brand-scrim);
+  --containment-modal-fill-default-enabled:    var(--surface-card);
+  --containment-modal-border-default-enabled:  var(--border-subtle);
+
+  /* ==========================================================
+     COLOR · Purpose: COMMUNICATION · Component: Badge / Alert
+     Variant = Info / Success / Warning / Error
+     ========================================================== */
+  --communication-badge-fill-info-enabled:    var(--status-info-bg);
+  --communication-badge-text-info-enabled:    var(--status-info-fg);
+  --communication-badge-fill-success-enabled: var(--status-success-bg);
+  --communication-badge-text-success-enabled: var(--status-success-fg);
+  --communication-badge-fill-warning-enabled: var(--status-warning-bg);
+  --communication-badge-text-warning-enabled: var(--status-warning-fg);
+  --communication-badge-fill-error-enabled:   var(--status-danger-bg);
+  --communication-badge-text-error-enabled:   var(--status-danger-fg);
+
+  /* Muted tier — softer opt-in alternative to the vivid fills above (see
+     tokens/colors.css "Feedback · Muted tier" for rationale/contrast). */
+  --communication-badge-fill-info-muted:    var(--status-info-muted-bg);
+  --communication-badge-text-info-muted:    var(--status-info-muted-fg);
+  --communication-badge-fill-success-muted: var(--status-success-muted-bg);
+  --communication-badge-text-success-muted: var(--status-success-muted-fg);
+  --communication-badge-fill-warning-muted: var(--status-warning-muted-bg);
+  --communication-badge-text-warning-muted: var(--status-warning-muted-fg);
+  --communication-badge-fill-error-muted:   var(--status-danger-muted-bg);
+  --communication-badge-text-error-muted:   var(--status-danger-muted-fg);
+
+  /* ==========================================================
+     TYPOGRAPHY — split Headline / Label / Body (rule 4)
+     Component-scoped roles map onto the --type-* ladder.
+     ========================================================== */
+  /* Headline group → Boehringer Forward Head */
+  --type-headline-1: var(--type-title-1);   --type-headline-1-tracking: var(--type-title-1-tracking);
+  --type-headline-2: var(--type-title-2);   --type-headline-2-tracking: var(--type-title-2-tracking);
+  --type-headline-3: var(--type-heading);   --type-headline-3-tracking: var(--type-heading-tracking);
+  /* Body group → Boehringer Forward Text */
+  --type-body-group: var(--type-body);      --type-body-group-tracking: var(--type-body-tracking);
+  /* Label group → Boehringer Forward Text, UI */
+  --type-label-group: var(--type-label);    --type-label-group-tracking: var(--type-label-tracking);
+
+  /* Component-scoped type */
+  --action-button-label-type: var(--type-label);
+  --action-button-label-tracking: var(--type-label-tracking);
+  --navigation-tabs-label-type: var(--type-label);
+  --navigation-bottomnav-label-type: var(--type-label-sm);
+  --textinput-input-label-type: var(--type-label-sm);
+}
+
+/* Placeholder color is a browser pseudo-element, not an inline style — wire
+   the token globally so every native input/textarea in the DS matches the
+   placeholder swatch shown in the Input doc page and Figma. */
+input::placeholder, textarea::placeholder {
+  color: var(--textinput-input-text-default-placeholder);
+  opacity: 1;
+}

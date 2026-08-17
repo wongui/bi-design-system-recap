@@ -1,0 +1,324 @@
+/* ============================================================
+   COLORS — Boehringer Ingelheim (2023 "Life forward" system)
+   Organized in three categories, in order:
+     1. PRIMARY            — brand core + functional + neutral ramp
+     2. SECONDARY          — the four supporting hue ramps
+     3. STATUS & SEMANTIC  — surfaces, text, borders, actions,
+                             focus, and feedback aliases
+   Product code should reference the SEMANTIC aliases (§3); the
+   raw palette swatches in §1–2 are the source of truth.
+   ============================================================ */
+:root {
+
+  /* ==========================================================
+     1 · PRIMARY
+     ========================================================== */
+
+  /* ---------- Brand core ---------- */
+  --bi-accent-green: #00E47C;   /* Pantone 7479 C — logo mark, highlights, CTA on dark-green surfaces only */
+  --bi-dark-green:   #08312A;   /* Pantone 3302 C — primary brand background, dark surfaces */
+  --bi-light-gray:   #F4F5F3;   /* cool near-white surface */
+  --bi-warm-gray:    #E4E2DC;   /* warm neutral surface / dividers */
+
+  /* ---------- Functional ---------- */
+  --bi-white: #FFFFFF;
+  --bi-black: #0A0A0A;
+
+  /* ---------- Neutral ramp (dark-green tinted) ---------- */
+  --bi-neutral-50:  #F7F8F6;
+  --bi-neutral-100: #EDEFEB;
+  --bi-neutral-200: #DDE0DA;
+  --bi-neutral-300: #C4C9C0;
+  --bi-neutral-400: #9AA29A;
+  --bi-neutral-500: #6E776E;
+  --bi-neutral-600: #4E574F;
+  --bi-neutral-700: #353D37;
+  --bi-neutral-800: #1E2823;
+  --bi-neutral-900: #0C1714;
+
+  /* ==========================================================
+     2 · SECONDARY — supporting hue ramps (Light · Main · Medium · Dark)
+     ========================================================== */
+
+  /* ---------- Yellow ---------- */
+  --bi-yellow-light:  #F7EFA6;
+  --bi-yellow:        #F5D33C;  /* Main */
+  --bi-yellow-medium: #F2BE00;
+  --bi-yellow-dark:   #E07A0C;
+
+  /* ---------- Blue ---------- */
+  --bi-blue-light:  #C5EDEF;
+  --bi-blue:        #79D0D6;  /* Main */
+  --bi-blue-medium: #28BCC9;
+  --bi-blue-dark:   #176E80;
+
+  /* ---------- Red ---------- */
+  --bi-red-light:  #F6C7BA;
+  --bi-red:        #F07E68;  /* Main */
+  --bi-red-medium: #EE4F36;
+  --bi-red-dark:   #8C1A12;
+
+  /* ---------- Violet ---------- */
+  --bi-violet-light:  #DCD3F4;
+  --bi-violet:        #B19CE6;  /* Main */
+  --bi-violet-medium: #8A6BD9;
+  --bi-violet-dark:   #6A4DAE;
+
+  /* ==========================================================
+     3 · STATUS & SEMANTIC — what product code should reference
+     ========================================================== */
+
+  /* ---------- Brand role layer (multi-brand) ----------
+     The ONLY tokens that change value across brand modes. Every other
+     brand-flavored alias below (Action, Focus, Selection, Navigation,
+     Border-brand) points at these, never at --bi-* primitives directly,
+     so adding or switching a brand means re-declaring just this block.
+     Default (no [data-brand] attribute) = Boehringer Ingelheim. Add
+     [data-brand="jascayd"] to a wrapping element (e.g. <html> or the
+     portal root) to switch — see the Jascayd block at the end of this
+     file. A future third brand is the same pattern: one more
+     `[data-brand="..."]` block re-declaring only these ~12 properties.
+     Mirrored 1:1 in figma/BI-Patient-Portal.tokens.json as the
+     Foundation/Brand/* token sets. */
+  --brand-primary:             var(--bi-dark-green);   /* CTA fill on light surfaces */
+  --brand-primary-hover:       #16544A;
+  --brand-primary-press:       #052019;
+  --brand-on-primary:          var(--bi-white);         /* label/icon on brand-primary fill */
+  --brand-primary-border:      var(--bi-dark-green);
+
+  --brand-accent:               var(--bi-accent-green); /* CTA fill on dark/inverse surfaces ONLY — fails AA on light in BI mode */
+  --brand-accent-hover:         #00C96D;
+  --brand-accent-press:         #00B362;
+  --brand-on-accent:            var(--bi-dark-green);   /* label/icon on brand-accent fill */
+
+  --brand-focus-ring:           var(--bi-dark-green);
+  --brand-focus-ring-inverse:   var(--bi-accent-green);
+  --brand-selected:             var(--bi-dark-green);   /* checkbox/switch/tab selected state */
+
+  --brand-glow:                 rgba(0,228,124,0.22);    /* "current step" ring/glow around a brand-primary fill */
+  --brand-scrim:                rgba(10,25,22,0.55);     /* Modal backdrop — darkened, desaturated brand-primary (dark green) tint, not a neutral black */
+  /* No dedicated brand-soft-bg/on-soft-bg — anything wanting a "soft brand" tint
+     (e.g. Badge's brand tone) reuses --brand-accent/--brand-on-accent directly. */
+
+  /* ---------- Brand (identity aliases) ---------- */
+  --color-brand:           var(--brand-accent);
+  --color-brand-deep:      var(--brand-primary);
+
+  /* ---------- Surfaces ---------- */
+  --surface-page:          var(--bi-light-gray);
+  --surface-card:          var(--bi-white);
+  --surface-raised:        var(--bi-white);
+  --surface-sunken:        var(--bi-neutral-100);
+  --surface-inverse:       var(--bi-dark-green);   /* structural dark chrome (sidebar) — shared across brands, NOT brand-tinted in this phase; revisit if Jascayd needs its own dark chrome */
+  --surface-brand:         var(--brand-primary);
+
+  /* ---------- Text ----------
+     Two content colors do the work: PRIMARY for default reading text
+     (headings AND body) and SECONDARY for supporting / helper / caption text.
+     Both are brand-tinted near-blacks/greys and clear WCAG AA on white AND on
+     the Light-Gray page. NOTE: button LABELS do not use these — they use the
+     Button's per-variant on-colors (white on dark-green fills; dark green on
+     outline/accent variants). See tokens/semantic.css. */
+  --text-primary:          var(--bi-neutral-900);  /* #0C1714 · ~17:1 on page — headings & body */
+  --text-secondary:        var(--bi-neutral-600);  /* #4E574F · ~6:1 on page — supporting text */
+  --text-disabled:         var(--bi-neutral-400);  /* #9AA29A · decorative / disabled only, never body */
+  --text-inverse:          var(--bi-white);         /* text on dark-green / dark surfaces */
+  --text-on-brand:         var(--brand-on-accent);   /* dark text on bright Accent-Green fills (BI); white on Jascayd purple */
+  --text-link:             var(--bi-blue-dark);
+  /* Back-compat aliases (existing components reference these names) */
+  --text-strong:           var(--text-primary);
+  --text-body:             var(--text-primary);
+  --text-muted:            var(--text-secondary);
+  --text-subtle:           var(--text-disabled);
+  --text-on-accent:        var(--text-on-brand);
+
+  /* ---------- Borders & dividers ---------- */
+  --border-subtle:         var(--bi-neutral-200);
+  --border-default:        var(--bi-neutral-300);
+  --border-strong:         var(--bi-neutral-400);
+  --border-brand:          var(--brand-accent);
+
+  /* ---------- Action — primary ----------
+     Resolves through the brand role layer above. In BI mode this is
+     Dark Green solid — it clears WCAG AA against near-white/gray pages
+     where bright Accent Green does not. In Jascayd mode this is the
+     accessible purple. */
+  --action-primary:        var(--brand-primary);
+  --action-primary-hover:  var(--brand-primary-hover);
+  --action-primary-press:  var(--brand-primary-press);
+  --action-on-primary:     var(--brand-on-primary);
+
+  /* ---------- Action — inverse primary ----------
+     Resolves through the brand role layer above. In BI mode this is
+     Accent Green, reserved for dark-green / dark surfaces ONLY — it
+     fails contrast on light backgrounds, never place it on light. In
+     Jascayd mode this is the SAME purple as Primary (one brand color
+     clears contrast in both contexts, so it doesn't need BI's split). */
+  --action-inverse-primary:        var(--brand-accent);
+  --action-inverse-primary-hover:  var(--brand-accent-hover);
+  --action-inverse-primary-press:  var(--brand-accent-press);
+  --action-on-inverse-primary:     var(--brand-on-accent);
+
+  /* ---------- Action — secondary (brand-primary outline) ---------- */
+  --action-secondary:        transparent;
+  --action-secondary-hover:  var(--bi-neutral-100);
+  --action-secondary-press:  var(--bi-neutral-200);
+  --action-on-secondary:     var(--brand-primary);
+  --action-secondary-border: var(--brand-primary);
+
+  /* ---------- Focus ring ----------
+     Resolves through the brand role layer above. BI: Dark Green clears
+     3:1 on light surfaces, Accent Green clears it on dark. Jascayd:
+     the same purple in both roles. */
+  --focus-ring:            var(--brand-focus-ring);
+  --focus-ring-inverse:    var(--brand-focus-ring-inverse);
+
+  /* ---------- Feedback (success · info · warning · danger) ----------
+     ONE accessible feedback set — the single source for status color in both
+     code and Figma (mirrored 1:1 in figma/BI-Patient-Portal.tokens.json under
+     Color/Feedback/*). Do NOT paint status UI from the raw saturated ramp
+     mains (blue-medium / yellow-medium / red-medium) — those are source
+     swatches that fail contrast; they are why the old Figma "color/feedback"
+     group looked wrong next to these tokens.
+
+     Each triplet is used as a set:
+       -solid → icon / 4px accent rule (clears 3:1 on white — non-text min)
+       -bg    → tinted banner background
+       -fg    → text on that -bg (clears AA 4.5:1+)
+     Success is a distinct EMERALD, deliberately NOT the bright brand Accent
+     Green, so "task complete" never reads as a brand highlight.
+     Info solid uses the ramp's -dark step (not -medium) so the icon accent
+     itself clears 3:1; the bright mains only ever appear as -bg tints.
+     Warning solid is its OWN darkened value (not --bi-yellow-dark) — yellow-dark
+     only clears 3.1:1, enough for a non-text icon accent but not for a solid
+     badge fill with white text on top. This darker step clears ~4.77:1 with
+     white, so solid badges can use the same white text as every other tone
+     instead of carrying a tone-specific text-color exception. --bi-yellow-dark
+     itself is untouched — it's still used elsewhere at its original value.
+
+     -bg/-fg pairs were deepened (2026-07-24) — the original tints (e.g.
+     success-bg #DCF3E6) sat at ~1.1-1.2:1 contrast against the white/near-white
+     page, meaning the tinted container itself was barely perceptible, not just
+     low-priority — a real problem for this portal's 65+ audience. Each -bg is
+     now ~1.7-2.0:1 against white, with its paired -fg re-verified (not just
+     carried over) at 7:1+ against the NEW -bg, matching this system's senior-
+     audience contrast bar (7:1, not the 4.5:1 AA minimum — see
+     tokens/typography.css header for the full rationale).
+
+     -bg values were re-tuned again the same day — the first darkening pass
+     leaned on muted/grayish tints to hit contrast, which read as dull/"sad."
+     These are vivid, saturated versions at the same ~1.75:1 visibility target
+     instead (e.g. success-bg is now a true mint, not a sage gray); -fg values
+     were re-verified and did not need to change, still clearing 7:1+. */
+  --status-success:        #157347;   /* ~5.6:1 on white */
+  --status-success-bg:     #76D6AE;   /* was #DCF3E6 (~1.17:1 vs white), then #86C4AA (muted) */
+  --status-success-fg:     #09331F;   /* redarkened from #0B3B24 for the deepened bg; still clears 7:1 on #76D6AE */
+
+  --status-info:           var(--bi-blue-dark);    /* #176E80 · ~4.8:1 (was blue-medium ~1.9:1) */
+  --status-info-bg:        #6BD0F6;   /* was #E2F6F8 (~1.12:1 vs white), then #97BEC6 (muted) */
+  --status-info-fg:        #09303A;   /* redarkened from #0C4350 for the deepened bg; still clears 7:1 on #6BD0F6 */
+
+  --status-warning:        #B45A00;   /* ~4.77:1 on white (was --bi-yellow-dark #E07A0C · ~3.1:1) */
+  --status-warning-bg:     #FFB554;   /* was #FDF4D6 (~1.10:1 vs white), then #DBAF84 (muted) */
+  --status-warning-fg:     #382A00;   /* redarkened from #6E5200 for the deepened bg; still clears 7:1 on #FFB554 */
+
+  --status-danger:         var(--bi-red-medium);   /* #EE4F36 · ~3.4:1 — clears non-text 3:1 */
+  --status-danger-bg:      #FFB0A7;   /* was #FCE6E1 (~1.20:1 vs white), then #D6AEAB (muted) */
+  --status-danger-fg:      #58110B;   /* redarkened from #7A170F for the deepened bg; still clears 7:1 on #FFB0A7 */
+
+  /* ---------- Feedback · Muted tier (2026-07-27) ----------
+     A softer, opt-in alternative to the vivid -bg/-fg pair above, added on
+     request: the vivid tint reads as "too colorful" for some contexts even
+     though it's the accessible default. Use -muted-bg/-muted-fg wherever a
+     quieter tinted surface is wanted (e.g. Badge variant="muted", Alert
+     intensity="muted") — the -solid accent (icon / left rule) is unchanged,
+     so tone is still identifiable at a glance even at low bg saturation.
+     Pastel bg + the SAME -fg used by the vivid pair; because the muted bg
+     is lighter, contrast against it is higher than against the vivid bg
+     (already verified at 7:1+), so no new -fg darkening was needed. Bg
+     visibility vs. white page is deliberately low (~1.3:1) — this tier
+     trades ambient visibility for a calmer surface, on the assumption the
+     solid accent carries the "notice me" signal. */
+  --status-success-muted-bg: #C9EBDD;  /* fg/bg contrast ~10.9:1 (--status-success-fg) */
+  --status-success-muted-fg: var(--status-success-fg);
+
+  --status-info-muted-bg:    #C7E7F2;  /* fg/bg contrast ~10.8:1 (--status-info-fg) */
+  --status-info-muted-fg:    var(--status-info-fg);
+
+  --status-warning-muted-bg: #FCE2C2;  /* fg/bg contrast ~11.2:1 (--status-warning-fg) */
+  --status-warning-muted-fg: var(--status-warning-fg);
+
+  --status-danger-muted-bg:  #F7D6D1;  /* fg/bg contrast ~10.3:1 (--status-danger-fg) */
+  --status-danger-muted-fg:  var(--status-danger-fg);
+}
+
+/* ============================================================
+   BRAND VARIANT — Jascayd
+   ============================================================
+   Activate by adding [data-brand="jascayd"] to a wrapping element
+   (e.g. <html> or the portal's root container). Re-declares the brand
+   role layer above (§3 "Brand role layer") plus one surface exception
+   (--surface-brand, see below) — every semantic and component token
+   that references --brand-* repaints automatically; nothing else in
+   this file or in tokens/semantic.css needs to change. Mirrored in
+   figma/BI-Patient-Portal.tokens.json as the "Foundation/Brand/Jascayd"
+   token set / Figma variable mode.
+
+   Jascayd's brand guidelines document THREE sub-brand colors: Rose Red
+   #E0004D and Electric Violet #6A2CFC as a co-primary gradient pair,
+   plus Lime Yellow #DCF153 as a secondary accent for dark/gradient
+   surfaces. This system mirrors BI's own two-color split (Dark Green
+   for light surfaces, Accent Green for dark ones) using Jascayd's own
+   pair: Electric Violet is --brand-primary, Lime Yellow is
+   --brand-accent. Rose Red stays a primitive only — it's a gradient
+   partner in Jascayd's marketing use, not wired into any token role
+   here.
+
+   Electric Violet white-on-fill clears WCAG AA (6.22:1) but sits under
+   this system's stricter 7:1 body-text bar, so it's fine for short bold
+   CTA labels (the same use every --brand-primary fill gets) but is not
+   promoted to reading text. Lime Yellow fails contrast with white
+   entirely (1.25:1); a deep purple utility color (#430FBD, 8.2:1) was
+   tried as its on-color but judged not accessible enough for this
+   system's bar, so --brand-on-accent uses the shared dark neutral,
+   --bi-neutral-900, instead (14.6:1). That same deep purple still backs
+   --surface-brand: Electric Violet is too bright to hold up as a full
+   panel fill, so surfaces use the deeper purple instead (this is the
+   one place this block re-declares something outside the brand role
+   layer itself). See guidelines/cards/colors.html, "Brand core", for
+   the full swatch comparison and rationale. */
+[data-brand="jascayd"] {
+
+  /* ---------- Jascayd primitives ---------- */
+  --jascayd-electric-violet: #6A2CFC;  /* co-primary per brand guidelines — this system's --brand-primary */
+  --jascayd-rose-red:        #E0004D;  /* co-primary per brand guidelines — gradient/marketing use only, NOT wired into any semantic role */
+  --jascayd-lime-yellow:     #DCF153;  /* secondary accent per brand guidelines — this system's --brand-accent, dark surfaces only */
+  --jascayd-deep-purple:     #430FBD;  /* darker utility purple — surfaces and any text/icon role that needs higher contrast than Electric Violet gives */
+
+  /* ---------- Brand role layer ---------- */
+  --brand-primary:            var(--jascayd-electric-violet);
+  --brand-primary-hover:      #5A25D6;  /* ~15% darken, for hover affordance */
+  --brand-primary-press:      #4A1EB0;  /* ~30% darken, for press affordance */
+  --brand-on-primary:         var(--bi-white);   /* 6.22:1 — clears AA, short CTA labels only */
+  --brand-primary-border:     var(--jascayd-electric-violet);
+
+  --brand-accent:              var(--jascayd-lime-yellow);
+  --brand-accent-hover:        #BBCC46;  /* ~15% darken */
+  --brand-accent-press:        #9AA83A;  /* ~30% darken */
+  --brand-on-accent:           var(--bi-neutral-900);  /* 14.6:1 — white fails on Lime Yellow (1.25:1); deep purple only cleared 8.2:1, neutral-900 is stronger */
+
+  --brand-focus-ring:          var(--jascayd-electric-violet);
+  --brand-focus-ring-inverse:  var(--jascayd-lime-yellow);
+  --brand-selected:            var(--jascayd-electric-violet);
+
+  --brand-glow:                rgba(220,241,83,0.22);  /* brand-accent (Lime Yellow) at 22% alpha, mirrors BI's accent-colored glow */
+  --brand-scrim:               rgba(34,15,77,0.55);    /* darkened, desaturated Deep Purple tint, not Electric Violet — mirrors BI using its darkest green, not the brighter accent */
+  /* No brand-soft-bg/on-soft-bg override here either — see the BI block's note; both modes resolve through --brand-accent/--brand-on-accent above. */
+
+  /* ---------- Surface exception ----------
+     --surface-brand is normally just an alias for --brand-primary (see
+     §3 above), but Electric Violet is too vivid to hold up as a large
+     panel fill, so Jascayd mode re-declares it directly to the deeper
+     utility purple instead. */
+  --surface-brand:             var(--jascayd-deep-purple);
+}

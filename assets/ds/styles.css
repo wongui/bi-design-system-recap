@@ -1,0 +1,11 @@
+/* ============================================================
+   Boehringer Ingelheim — Patient Portal Design System
+   Global entry point. Consumers link THIS file only.
+   Import order: fonts → tokens → ... (declarations live in
+   the imported files; keep this file as @import lines only).
+   ============================================================ */
+@import "tokens/fonts.css";
+@import "tokens/colors.css";
+@import "tokens/typography.css";
+@import "tokens/spacing.css";
+@import "tokens/semantic.css";

@@ -1,0 +1,72 @@
+/* ============================================================
+   Boehringer Forward — custom corporate typeface (2023 rebrand)
+   Two families: "Head" (display/headlines) and "Text" (body/UI).
+   Only woff2 shipped; modern-browser only.
+   ============================================================ */
+
+/* ---- Boehringer Forward Head (display) ---- */
+@font-face {
+  font-family: "Boehringer Forward Head";
+  src: url("../assets/fonts/BoehringerForwardHead.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boehringer Forward Head";
+  src: url("../assets/fonts/BoehringerForwardHead-It.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boehringer Forward Head";
+  src: url("../assets/fonts/BoehringerForwardHead-Md.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boehringer Forward Head";
+  src: url("../assets/fonts/BoehringerForwardHead-Bd.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---- Boehringer Forward Text (body / UI) ---- */
+@font-face {
+  font-family: "Boehringer Forward Text";
+  src: url("../assets/fonts/BoehringerForwardText.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boehringer Forward Text";
+  src: url("../assets/fonts/BoehringerForwardText-It.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boehringer Forward Text";
+  src: url("../assets/fonts/BoehringerForwardText-Md.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boehringer Forward Text";
+  src: url("../assets/fonts/BoehringerForwardText-Bd.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boehringer Forward Text";
+  src: url("../assets/fonts/BoehringerForwardText-BdIt.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
